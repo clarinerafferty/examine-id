@@ -1,6 +1,14 @@
 # Examine.ID
 
-React + Vite frontend with an Express/MySQL backend for browsing Indonesian MP allowance data, benchmarks, and feedback.
+MP Allowance Transparency Mobile App for exploring Indonesian MP allowance data, benchmarks, and feedback through a React frontend with an Express/MySQL backend.
+
+## Data Notice
+
+The current dataset in this repository is prototype data for development and demonstration purposes.
+
+- it should not be treated as fully verified real-world parliamentary data
+- some benchmark values and seeded records are placeholders or proxies
+- any public-facing deployment should clearly distinguish prototype data from validated production data
 
 ## Before GitHub
 
