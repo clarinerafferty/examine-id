@@ -144,7 +144,7 @@ a,
 
 .page-content-dashboard {
   min-height: calc(100dvh - 133px);
-  border-radius: 34px 34px 0 0;
+  border-radius: 0;
   margin-top: 133px;
 }
 
@@ -3510,7 +3510,7 @@ a,
   .page-content-dashboard {
     min-height: calc(100dvh - 122px);
     margin-top: 122px;
-    border-radius: 28px 28px 0 0;
+    border-radius: 0;
   }
 
   .standard-top-header {
