@@ -22,6 +22,7 @@ html,
 body,
 #root {
   margin: 0;
+  height: 100%;
   min-height: 100dvh;
   font-family: "Poppins", sans-serif;
   background: #d9d9d9;
@@ -29,7 +30,7 @@ body,
 }
 
 body {
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 a {
@@ -68,20 +69,18 @@ a,
 .app-shell {
   width: min(390px, 100vw);
   max-width: 390px;
-  min-height: 100dvh;
+  height: 100dvh;
   margin: 0 auto;
   background: var(--bg-dark);
   position: relative;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 
 .top-header {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  width: min(390px, 100vw);
-  transform: translateX(-50%);
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 100%;
   height: 102px;
   padding-top: 30px;
   display: flex;
@@ -128,8 +127,8 @@ a,
 }
 
 .page-content {
-  min-height: 100dvh;
-  overflow: visible;
+  height: 100dvh;
+  overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-surface);
   border-radius: 0;
@@ -143,24 +142,22 @@ a,
 }
 
 .page-content-dashboard {
-  min-height: calc(100dvh - 133px);
+  height: calc(100dvh - 133px);
   border-radius: 34px 34px 0 0;
   margin-top: 133px;
 }
 
 .page-content-standard {
-  min-height: calc(100dvh - 86px);
+  height: calc(100dvh - 86px);
   background: #fff;
   border-radius: 34px 34px 0 0;
   margin-top: 86px;
 }
 
 .standard-top-header {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  width: min(390px, 100vw);
-  transform: translateX(-50%);
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 100%;
   height: 86px;
   padding: 26px 20px 0;
   display: flex;
@@ -3346,11 +3343,11 @@ a,
 }
 
 .bottom-nav {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute;
+  left: 20px;
+  right: 20px;
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  width: min(350px, calc(100vw - 22px));
+  width: auto;
   background: #2a2a2a;
   border-radius: 999px;
   padding: 20px 11px;
@@ -3455,7 +3452,15 @@ a,
 }
 @media (max-width: 420px) {
   .app-shell {
+    width: 100vw;
     max-width: 100vw;
+    margin: 0;
+  }
+
+  html,
+  body,
+  #root {
+    background: var(--bg-dark);
   }
 }
 
@@ -3486,7 +3491,7 @@ a,
   }
 
   .page-content-dashboard {
-    min-height: calc(100dvh - 122px);
+    height: calc(100dvh - 122px);
     margin-top: 122px;
     border-radius: 28px 28px 0 0;
   }
@@ -3511,7 +3516,7 @@ a,
   }
 
   .page-content-standard {
-    min-height: calc(100dvh - 82px);
+    height: calc(100dvh - 82px);
     margin-top: 82px;
     border-radius: 28px 28px 0 0;
   }
@@ -3531,9 +3536,10 @@ a,
   }
 
   .bottom-nav {
-    width: calc(100% - 16px);
+    left: 8px;
+    right: 8px;
+    width: auto;
     padding: 16px 10px;
-    max-width: none;
   }
 
   .nav-icon-item {
