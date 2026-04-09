@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchJson, formatCurrency, getBrowserSessionHash } from "../lib/api";
+import {
+  fetchJson,
+  formatCurrency,
+  getBrowserSessionHash,
+  postJson,
+} from "../lib/api";
 
 function formatCompactCurrency(value) {
   const numericValue = Number(value || 0);
@@ -250,31 +255,19 @@ function MpDetail() {
     setFeedbackMessage("");
 
     try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          feedback_type: "rating",
-          mp_id: Number(id),
-          period_id: Number(selectedPeriodId),
-          response_value: responseValue,
-          session_hash: getBrowserSessionHash(),
-          source_page: `/mps/${id}`,
-        }),
+      await postJson("/api/feedback", {
+        feedback_type: "rating",
+        mp_id: Number(id),
+        period_id: Number(selectedPeriodId),
+        response_value: responseValue,
+        session_hash: getBrowserSessionHash(),
+        source_page: `/mps/${id}`,
       });
-
-      if (!response.ok) {
-        throw new Error("Feedback failed");
-      }
-
-      await response.json();
       await fetchJson(`/api/feedback?mp_id=${id}`);
       setFeedbackMessage("Anonymous vote recorded for this period");
       setHasSubmittedFeedback(true);
     } catch (error) {
-      if (error instanceof Error && error.message.includes("409")) {
+      if (error instanceof Error && error.status === 409) {
         setFeedbackMessage("Anonymous vote recorded for this period");
         setHasSubmittedFeedback(true);
       } else {

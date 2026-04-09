@@ -378,7 +378,7 @@ function Dashboard() {
         <div className="brand-wrap">
           <img src="/examine-id-logo.png" alt="Examine.ID logo" className="brand-logo" />
           <div className="brand-text">
-            <div className="brand-title">Examine.ID</div>
+            <div className="brand-title">examine.id</div>
             <div className="brand-subtitle">See the Numbers, Know the Story</div>
           </div>
         </div>

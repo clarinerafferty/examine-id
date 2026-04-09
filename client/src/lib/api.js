@@ -23,6 +23,29 @@ export async function fetchJson(path) {
   return response.json();
 }
 
+export async function postJson(path, body) {
+  const response = await fetch(resolveApiUrl(path), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const error = new Error(
+      payload?.error || payload?.message || `Request failed: ${response.status}`
+    );
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+}
+
 export function formatCurrency(value) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
