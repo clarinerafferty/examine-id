@@ -47,10 +47,10 @@ router.get("/", (req, res) => {
       mar.variance_percent,
       mar.variance_amount,
       mar.last_updated
-    FROM MPAllowanceRecord mar
-    JOIN MP m ON mar.mp_id = m.mp_id
-    JOIN AllowanceCategory ac ON mar.category_id = ac.category_id
-    JOIN ReportingPeriod rp ON mar.period_id = rp.period_id
+    FROM mpallowancerecord mar
+    JOIN mp m ON mar.mp_id = m.mp_id
+    JOIN allowancecategory ac ON mar.category_id = ac.category_id
+    JOIN reportingperiod rp ON mar.period_id = rp.period_id
     ${whereClause}
     ORDER BY rp.year DESC, rp.month DESC, m.full_name ASC, ac.display_order ASC
   `;

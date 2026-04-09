@@ -18,8 +18,8 @@ router.get("/", (req, res) => {
       p.party_name,
       p.party_abbreviation,
       p.party_logo
-    FROM MP m
-    JOIN Party p ON m.party_id = p.party_id
+    FROM mp m
+    JOIN party p ON m.party_id = p.party_id
     ORDER BY m.full_name ASC
   `;
 
@@ -58,10 +58,10 @@ router.get("/:id/allowances", (req, res) => {
       cb.source_name,
       cb.source_url,
       mar.last_updated
-    FROM MPAllowanceRecord mar
-    JOIN AllowanceCategory ac ON mar.category_id = ac.category_id
-    JOIN ReportingPeriod rp ON mar.period_id = rp.period_id
-    LEFT JOIN CategoryBenchmark cb
+    FROM mpallowancerecord mar
+    JOIN allowancecategory ac ON mar.category_id = ac.category_id
+    JOIN reportingperiod rp ON mar.period_id = rp.period_id
+    LEFT JOIN categorybenchmark cb
       ON cb.category_id = mar.category_id
       AND cb.period_id = mar.period_id
     WHERE mar.mp_id = ?
@@ -96,8 +96,8 @@ router.get("/:id", (req, res) => {
       p.party_name,
       p.party_abbreviation,
       p.party_logo
-    FROM MP m
-    JOIN Party p ON m.party_id = p.party_id
+    FROM mp m
+    JOIN party p ON m.party_id = p.party_id
     WHERE m.mp_id = ?
   `;
 
@@ -107,7 +107,7 @@ router.get("/:id", (req, res) => {
       COALESCE(SUM(actual_spend), 0) AS total_actual_spend,
       COALESCE(SUM(allowance_cap), 0) AS total_allowance_cap,
       COALESCE(AVG(variance_percent), 0) AS average_variance_percent
-    FROM MPAllowanceRecord
+    FROM mpallowancerecord
     WHERE mp_id = ?
   `;
 

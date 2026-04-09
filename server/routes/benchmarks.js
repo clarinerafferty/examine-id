@@ -38,9 +38,9 @@ router.get("/", (req, res) => {
       cb.source_name,
       cb.source_url,
       cb.last_updated
-    FROM CategoryBenchmark cb
-    JOIN AllowanceCategory ac ON cb.category_id = ac.category_id
-    JOIN ReportingPeriod rp ON cb.period_id = rp.period_id
+    FROM categorybenchmark cb
+    JOIN allowancecategory ac ON cb.category_id = ac.category_id
+    JOIN reportingperiod rp ON cb.period_id = rp.period_id
     ${whereClause}
     ORDER BY rp.year DESC, rp.month DESC, ac.display_order ASC
   `;

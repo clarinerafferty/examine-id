@@ -15,8 +15,8 @@ router.get("/", (req, res) => {
       COUNT(mar.allowance_record_id) AS allowance_record_count,
       COALESCE(SUM(mar.actual_spend), 0) AS total_actual_spend,
       COALESCE(SUM(mar.allowance_cap), 0) AS total_allowance_cap
-    FROM AllowanceCategory ac
-    LEFT JOIN MPAllowanceRecord mar ON ac.category_id = mar.category_id
+    FROM allowancecategory ac
+    LEFT JOIN mpallowancerecord mar ON ac.category_id = mar.category_id
     WHERE ac.is_active = TRUE
     GROUP BY
       ac.category_id,

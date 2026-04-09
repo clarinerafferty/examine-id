@@ -34,7 +34,7 @@ router.post("/", (req, res) => {
 
   const findExistingSql = `
     SELECT feedback_id
-    FROM FeedbackResponse
+    FROM feedbackresponse
     WHERE feedback_type = ?
       AND period_id = ?
       AND session_hash = ?
@@ -64,7 +64,7 @@ router.post("/", (req, res) => {
       }
 
       const insertSql = `
-        INSERT INTO FeedbackResponse (
+        INSERT INTO feedbackresponse (
           feedback_type,
           mp_id,
           category_id,
@@ -142,10 +142,10 @@ router.get("/", (req, res) => {
       fr.submitted_at,
       fr.session_hash,
       fr.source_page
-    FROM FeedbackResponse fr
-    LEFT JOIN MP m ON fr.mp_id = m.mp_id
-    LEFT JOIN AllowanceCategory ac ON fr.category_id = ac.category_id
-    JOIN ReportingPeriod rp ON fr.period_id = rp.period_id
+    FROM feedbackresponse fr
+    LEFT JOIN mp m ON fr.mp_id = m.mp_id
+    LEFT JOIN allowancecategory ac ON fr.category_id = ac.category_id
+    JOIN reportingperiod rp ON fr.period_id = rp.period_id
     ${whereClause}
     ORDER BY fr.submitted_at DESC
   `;
