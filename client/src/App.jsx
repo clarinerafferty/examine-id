@@ -79,6 +79,17 @@ function App() {
 
   return (
     <div className="app-shell">
+      {isDashboard && (
+        <header className="top-header">
+          <div className="brand-wrap">
+            <img src="/examine-id-logo.png" alt="Examine.ID logo" className="brand-logo" />
+            <div className="brand-text">
+              <div className="brand-title">examine.id</div>
+              <div className="brand-subtitle">See the Numbers, Know the Story</div>
+            </div>
+          </div>
+        </header>
+      )}
       {standardHeader && (
         <header className="standard-top-header">
           {standardHeader.backTo && (
