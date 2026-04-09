@@ -148,6 +148,19 @@ a,
   margin-top: 133px;
 }
 
+.page-content-dashboard::before {
+  content: "";
+  position: sticky;
+  top: 102px;
+  display: block;
+  height: 34px;
+  margin-top: -34px;
+  background: var(--bg-surface);
+  border-radius: 34px 34px 0 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
 .page-content-standard {
   min-height: calc(100dvh - 86px);
   background: #fff;
@@ -3488,6 +3501,13 @@ a,
   .page-content-dashboard {
     min-height: calc(100dvh - 122px);
     margin-top: 122px;
+    border-radius: 28px 28px 0 0;
+  }
+
+  .page-content-dashboard::before {
+    top: 96px;
+    height: 28px;
+    margin-top: -28px;
     border-radius: 28px 28px 0 0;
   }
 
