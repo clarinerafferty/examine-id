@@ -104,12 +104,6 @@ function App() {
         </header>
       )}
       <div
-        className={`fixed-sheet-curve ${
-          isDashboard ? "fixed-sheet-curve-dashboard" : "fixed-sheet-curve-standard"
-        }`}
-        aria-hidden="true"
-      />
-      <div
         className={`page-content ${
           isDashboard ? "page-content-dashboard" : "page-content-standard"
         }`}
