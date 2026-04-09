@@ -3,6 +3,9 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
+const useDbSsl =
+  String(process.env.DB_SSL || "").trim().toLowerCase() === "true";
+
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -15,12 +18,13 @@ const db = mysql.createPool({
   connectTimeout: 10000,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  ...(useDbSsl ? { ssl: { rejectUnauthorized: false } } : {}),
 });
 
-// Log one startup probe, but let the pool reconnect lazily for later requests.
+// Probe once at boot for visibility, but keep serving so later requests can reconnect.
 db.getConnection((err, connection) => {
   if (err) {
-    console.error("Database pool startup check failed:", err);
+    console.error("Database pool startup check failed:", err.code || err.message);
     return;
   }
 

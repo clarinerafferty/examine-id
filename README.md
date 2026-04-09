@@ -1,38 +1,46 @@
 # Examine.ID
 
-MP Allowance Transparency Mobile App for exploring Indonesian MP allowance data, benchmarks, and feedback through a React frontend with an Express/MySQL backend.
+`examine.id` is a mobile-first transparency web app for exploring Indonesian MP allowance data, category benchmarks, and public feedback through a React frontend with an Express/MySQL backend.
 
-## Data Notice
+## Project status
 
-The current dataset in this repository is prototype data for development and demonstration purposes.
+- The application is intended to be demonstrated locally.
+- A cloud deployment was attempted using Vercel, Render, and Railway.
+- The remaining deployment issue is hosted database reliability on the free-tier stack, not the core local app flow.
 
-- it should not be treated as fully verified real-world parliamentary data
-- some benchmark values and seeded records are placeholders or proxies
-- any public-facing deployment should clearly distinguish prototype data from validated production data
+## Data notice
 
-## Before GitHub
+The dataset in this repository is prototype/demo data for development and presentation purposes.
 
-Do not commit real secrets or local-only files. This repo should include:
+- It should not be treated as fully verified parliamentary data.
+- Some benchmark figures are placeholders or proxy values.
+- Any future public deployment should clearly label the dataset as prototype data unless it has been formally validated.
 
-- source code
-- `client/.env.example`
-- `server/.env.example`
-- documentation
+## Tech stack
 
-This repo should not include:
+- Frontend: React, Vite, React Router
+- Backend: Express
+- Database: MySQL
+- Styling/UI: custom CSS, MUI icon/components where needed
 
-- `server/.env`
-- `client/.env`
-- any `node_modules` folder
-- build output such as `dist`
+## Repository structure
 
-## Local development
+```text
+client/   React frontend
+server/   Express API and MySQL connection
+docs/     supporting notes/documentation
+```
 
-1. Create `server/.env` from `server/.env.example`.
-2. Create `client/.env` from `client/.env.example`.
-3. Fill in your local MySQL details in `server/.env`.
+## Local setup
 
-Backend env in `server/.env`:
+### 1. Create environment files
+
+Create local env files from the examples:
+
+- `server/.env` from `server/.env.example`
+- `client/.env` from `client/.env.example`
+
+Suggested local backend env:
 
 ```env
 DB_HOST=127.0.0.1
@@ -40,64 +48,69 @@ DB_USER=root
 DB_PASSWORD=
 DB_NAME=examineid
 DB_PORT=3306
+DB_SSL=false
 PORT=5000
-CORS_ORIGIN=http://localhost:5173,http://YOUR-LAPTOP-IP:5173
+CORS_ORIGIN=http://localhost:5173,http://192.168.1.100:5173
 ```
 
-Frontend env in `client/.env`:
+Suggested local frontend env:
 
 ```env
 VITE_API_PROXY_TARGET=http://localhost:5000
 VITE_API_BASE_URL=
 ```
 
-Run the app:
+### 2. Prepare MySQL
+
+- Create a local MySQL database named `examineid`
+- Import the schema/data needed for the project
+- Use the local database credentials in `server/.env`
+
+## Running the project locally
+
+Start the backend in one terminal:
 
 ```powershell
 cd server
-npm run dev
+npm.cmd start
 ```
+
+Start the frontend in another terminal:
 
 ```powershell
 cd client
-npm run dev -- --host
+npm.cmd run dev -- --host
 ```
 
-Open `http://YOUR-LAPTOP-IP:5173` on your phone while both devices are on the same Wi-Fi.
+Then open the Vite URL shown in the terminal.
 
-## Public deployment
+If you want to test on your phone while on the same Wi-Fi, open:
 
-For a real internet deployment, keep MySQL and host the three parts separately:
-
-1. Frontend: host the built `client` app.
-2. Backend: host the `server` Express app.
-3. Database: host a MySQL instance and copy your schema/data into it.
-
-Typical production env values:
-
-Frontend:
-
-```env
-VITE_API_BASE_URL=https://your-backend-domain.com
+```text
+http://YOUR-LAPTOP-IP:5173
 ```
 
-Backend:
+## What works locally
 
-```env
-DB_HOST=your-mysql-host
-DB_USER=your-db-user
-DB_PASSWORD=your-db-password
-DB_NAME=your-db-name
-DB_PORT=3306
-PORT=5000
-CORS_ORIGIN=https://your-frontend-domain.com
-```
+- dashboard overview
+- MP list and detail pages
+- category list and detail pages
+- allowance and benchmark browsing
+- feedback submission flow
 
-In development, the frontend uses the Vite proxy. In production, the frontend calls the hosted backend directly.
 
-## Recommended GitHub Structure
+## Submission note
 
-- push the full repo root
-- keep `client` and `server` as subfolders
-- include this root `README.md`
-- keep secrets only in local `.env` files or hosting provider environment settings
+This repository is intended to be submitted with:
+
+- source code
+- example env files
+- documentation
+
+This repository should not include:
+
+- real secrets
+- local `.env` files
+- `node_modules`
+- build output folders
+
