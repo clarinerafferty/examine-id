@@ -81,13 +81,14 @@ a,
   position: absolute;
   inset: 0 0 auto 0;
   width: 100%;
-  height: 114px;
+  height: 176px;
   padding-top: 18px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   background: var(--bg-dark);
   z-index: 10;
+  padding-inline: 12px;
 }
 
 .brand-wrap {
@@ -142,9 +143,10 @@ a,
 }
 
 .page-content-dashboard {
-  height: calc(100dvh - 114px);
+  height: calc(100dvh - 146px);
   border-radius: 34px 34px 0 0;
-  margin-top: 114px;
+  margin-top: 146px;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.04);
 }
 
 .page-content-standard {
@@ -201,7 +203,7 @@ a,
 .dashboard-main {
   min-height: 100%;
   background: #f5f5f5;
-  padding: 26px 20px calc(140px + env(safe-area-inset-bottom, 0px));
+  padding: 78px 20px calc(140px + env(safe-area-inset-bottom, 0px));
   margin: 0;
 }
 
@@ -3460,14 +3462,15 @@ a,
   html,
   body,
   #root {
-    background: var(--bg-dark);
+    background: var(--bg-surface);
   }
 }
 
 @media (max-width: 390px) {
   .top-header {
-    height: 102px;
+    height: 160px;
     padding-top: 16px;
+    padding-inline: 10px;
   }
 
   .brand-wrap {
@@ -3491,8 +3494,8 @@ a,
   }
 
   .page-content-dashboard {
-    height: calc(100dvh - 102px);
-    margin-top: 102px;
+    height: calc(100dvh - 132px);
+    margin-top: 132px;
     border-radius: 28px 28px 0 0;
   }
 
@@ -3522,7 +3525,7 @@ a,
   }
 
   .dashboard-main {
-    padding-inline: 16px;
+    padding: 68px 16px calc(136px + env(safe-area-inset-bottom, 0px));
   }
 
   .hero-title {
