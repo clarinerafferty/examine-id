@@ -143,9 +143,9 @@ a,
 }
 
 .page-content-dashboard {
-  min-height: calc(100dvh - 133px);
+  min-height: calc(100dvh - 102px);
   border-radius: 0;
-  margin-top: 133px;
+  margin-top: 102px;
 }
 
 .page-content-standard {
@@ -3508,8 +3508,8 @@ a,
   }
 
   .page-content-dashboard {
-    min-height: calc(100dvh - 122px);
-    margin-top: 122px;
+    min-height: calc(100dvh - 96px);
+    margin-top: 96px;
     border-radius: 0;
   }
 
