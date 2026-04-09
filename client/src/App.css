@@ -204,9 +204,10 @@ a,
 .dashboard-main {
   min-height: 100%;
   background: #f5f5f5;
-  border-radius: 34px 34px 0 0;
-  margin: -31px 0 0;
-  padding: 57px 20px calc(140px + env(safe-area-inset-bottom, 0px));
+  border-radius: 38px 38px 0 0;
+  margin: -38px 0 0;
+  padding: 68px 20px calc(140px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
   position: relative;
   z-index: 11;
 }
@@ -3519,9 +3520,9 @@ a,
   }
 
   .dashboard-main {
-    border-radius: 28px 28px 0 0;
-    margin-top: -26px;
-    padding: 48px 16px calc(140px + env(safe-area-inset-bottom, 0px));
+    border-radius: 32px 32px 0 0;
+    margin-top: -32px;
+    padding: 58px 16px calc(140px + env(safe-area-inset-bottom, 0px));
   }
 
   .hero-title {
