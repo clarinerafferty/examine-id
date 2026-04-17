@@ -16,11 +16,13 @@ const categoryAccentMap = {
   "Travel and Accommodation": "travel",
   "Digital Communications": "communication",
 };
+const LOW_DATA_THRESHOLD = 5;
 
 function labelForResponse(value) {
   switch (value) {
     case "not_reasonable":
     case "far_too_high":
+    case "too_low":
       return "not reasonable";
     case "somewhat_reasonable":
     case "slightly_high":
@@ -84,6 +86,21 @@ function monthNumberFromLabel(label) {
   return monthMap[String(label || "").slice(0, 3)] || 0;
 }
 
+function categoryVoteRankFromType(feedbackType) {
+  switch (String(feedbackType || "").toLowerCase()) {
+    case "sentiment_head":
+      return "Head";
+    case "sentiment_vice":
+      return "Vice";
+    case "sentiment_member":
+      return "Member";
+    case "sentiment":
+      return "Legacy";
+    default:
+      return null;
+  }
+}
+
 function Feedback() {
   const [searchParams] = useSearchParams();
   const [feedback, setFeedback] = useState([]);
@@ -92,12 +109,24 @@ function Feedback() {
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState("concern");
+  const [selectedCategoryVoteRank, setSelectedCategoryVoteRank] = useState("all");
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const periodMenuRef = useRef(null);
   const categorySectionRef = useRef(null);
   const rankSectionRef = useRef(null);
   const highlightedCategoryRef = useRef(null);
+
+  function toggleCategoryBreakdown(categoryId) {
+    setExpandedCategoryIds((current) => {
+      if (current.includes(categoryId)) {
+        return current.filter((id) => id !== categoryId);
+      }
+
+      return [...current, categoryId];
+    });
+  }
 
   const loadFeedbackPage = useCallback(async () => {
     setLoading(true);
@@ -221,7 +250,7 @@ function Feedback() {
     }
 
     const concernedResponses = overallResponses.filter((item) =>
-      ["not_reasonable", "far_too_high", "somewhat_reasonable", "slightly_high"].includes(
+      ["not_reasonable", "far_too_high", "too_low", "somewhat_reasonable", "slightly_high"].includes(
         item.response_value
       )
     ).length;
@@ -234,6 +263,15 @@ function Feedback() {
 
     selectedFeedback
       .filter((item) => item.category_id)
+      .filter((item) => {
+        if (selectedCategoryVoteRank === "all") {
+          return ["sentiment", "sentiment_head", "sentiment_vice", "sentiment_member"].includes(
+            String(item.feedback_type || "").toLowerCase()
+          );
+        }
+
+        return categoryVoteRankFromType(item.feedback_type) === selectedCategoryVoteRank;
+      })
       .forEach((item) => {
         const categoryName = normaliseCategoryName(item.category_name);
         const key = `${item.category_id}-${categoryName}`;
@@ -265,6 +303,7 @@ function Feedback() {
         concernPercent: item.total ? Math.round((item.notReasonable / item.total) * 100) : 0,
         somewhatPercent: item.total ? Math.round((item.somewhat / item.total) * 100) : 0,
         veryPercent: item.total ? Math.round((item.very / item.total) * 100) : 0,
+        hasLimitedData: item.total < LOW_DATA_THRESHOLD,
       }))
       .filter((item) =>
         item.category_name.toLowerCase().includes(searchTerm.trim().toLowerCase())
@@ -280,36 +319,52 @@ function Feedback() {
 
         return b.concernPercent - a.concernPercent;
       });
-  }, [searchTerm, selectedFeedback, sortMode]);
+  }, [searchTerm, selectedCategoryVoteRank, selectedFeedback, sortMode]);
+
+  const selectedPeriodLabel =
+    periods.find((item) => String(item.period_id) === String(selectedPeriod))?.label || "Latest";
 
   const highlights = useMemo(() => {
     if (!categorySentiment.length) {
       return [];
     }
 
-    const concernLeader = [...categorySentiment].sort(
+    const categoriesWithEnoughData = categorySentiment.filter(
+      (item) => item.total >= LOW_DATA_THRESHOLD
+    );
+
+    if (!categoriesWithEnoughData.length) {
+      return [
+        {
+          tone: "yellow",
+          text: `Early signal only: category results for ${selectedPeriodLabel} are based on limited responses so far.`,
+        },
+      ];
+    }
+
+    const concernLeader = [...categoriesWithEnoughData].sort(
       (a, b) => b.concernPercent - a.concernPercent
     )[0];
-    const somewhatLeader = [...categorySentiment].sort(
+    const somewhatLeader = [...categoriesWithEnoughData].sort(
       (a, b) => b.somewhatPercent - a.somewhatPercent
     )[0];
-    const veryLeader = [...categorySentiment].sort((a, b) => b.veryPercent - a.veryPercent)[0];
+    const veryLeader = [...categoriesWithEnoughData].sort((a, b) => b.veryPercent - a.veryPercent)[0];
 
     return [
       concernLeader && {
         tone: "red",
-        text: `${concernLeader.category_name} is the most contested category (${concernLeader.concernPercent}% not reasonable).`,
+        text: `${concernLeader.category_name} currently shows the strongest concern (${concernLeader.concernPercent}% not reasonable, ${concernLeader.total} votes).`,
       },
       somewhatLeader && {
         tone: "yellow",
-        text: `${somewhatLeader.category_name} allowances are rated slightly better this period.`,
+        text: `${somewhatLeader.category_name} is drawing a more mixed response this period (${somewhatLeader.total} votes).`,
       },
       veryLeader && {
         tone: "olive",
-        text: `${veryLeader.category_name} is seen as the most reasonable (${veryLeader.veryPercent}% very reasonable).`,
+        text: `${veryLeader.category_name} is seen as the most reasonable so far (${veryLeader.veryPercent}% reasonable, ${veryLeader.total} votes).`,
       },
     ].filter(Boolean);
-  }, [categorySentiment]);
+  }, [categorySentiment, selectedPeriodLabel]);
 
   const rankSentiment = useMemo(() => {
     const mpMap = new Map(mps.map((item) => [item.mp_id, item]));
@@ -355,8 +410,11 @@ function Feedback() {
 
     return b.total - a.total;
   })[0];
-  const selectedPeriodLabel =
-    periods.find((item) => String(item.period_id) === String(selectedPeriod))?.label || "Latest";
+  const selectedCategoryVoteRankLabel =
+    selectedCategoryVoteRank === "all"
+      ? "all ranks"
+      : `${selectedCategoryVoteRank.toLowerCase()} rank`;
+  const rankSentimentHasLimitedData = rankSentiment.every((item) => item.total < LOW_DATA_THRESHOLD);
 
   useEffect(() => {
     if (loading || error) {
@@ -471,7 +529,7 @@ function Feedback() {
                 <article className="feedback-stat-card dark">
                   <div className="feedback-stat-label">ALL RESPONSES</div>
                   <div className="feedback-stat-value">{allResponsesPercent}%</div>
-                  <p>consider allowances not reasonable or too high</p>
+                  <p>consider allowances not reasonable, too high, or too low</p>
                 </article>
                 <article className="feedback-stat-card olive">
                   <div className="feedback-stat-label">RESPONSES</div>
@@ -502,6 +560,9 @@ function Feedback() {
 
             <section className="feedback-section" ref={categorySectionRef}>
               <h2>Per-category Sentiment</h2>
+              <p className="feedback-subtext">
+                Filters category votes by the MP rank view they were submitted from.
+              </p>
               <div className="feedback-search">
                 <input
                   type="text"
@@ -512,6 +573,43 @@ function Feedback() {
                 <button type="button" aria-label="Search feedback categories">
                   <Search size={14} />
                 </button>
+              </div>
+
+              <div className="feedback-sort-row">
+                <div className="control-label">
+                  <ListFilter size={14} />
+                  <span>Votes from</span>
+                </div>
+                <div className="chip-row">
+                  <button
+                    type="button"
+                    className={`sort-chip ${selectedCategoryVoteRank === "all" ? "active" : "ghost"}`}
+                    onClick={() => setSelectedCategoryVoteRank("all")}
+                  >
+                    All ranks
+                  </button>
+                  <button
+                    type="button"
+                    className={`sort-chip ${selectedCategoryVoteRank === "Head" ? "active" : "ghost"}`}
+                    onClick={() => setSelectedCategoryVoteRank("Head")}
+                  >
+                    Head
+                  </button>
+                  <button
+                    type="button"
+                    className={`sort-chip ${selectedCategoryVoteRank === "Vice" ? "active" : "ghost"}`}
+                    onClick={() => setSelectedCategoryVoteRank("Vice")}
+                  >
+                    Vice
+                  </button>
+                  <button
+                    type="button"
+                    className={`sort-chip ${selectedCategoryVoteRank === "Member" ? "active" : "ghost"}`}
+                    onClick={() => setSelectedCategoryVoteRank("Member")}
+                  >
+                    Member
+                  </button>
+                </div>
               </div>
 
               <div className="feedback-sort-row">
@@ -539,7 +637,7 @@ function Feedback() {
                     className={`sort-chip ghost ${sortMode === "reasonable" ? "active" : ""}`}
                     onClick={() => setSortMode("reasonable")}
                   >
-                    Very Reasonable
+                    Reasonable
                   </button>
                 </div>
               </div>
@@ -551,6 +649,7 @@ function Feedback() {
                   const isHighlighted =
                     focusType === "category" &&
                     String(item.category_id) === String(highlightedCategoryId);
+                  const isExpanded = expandedCategoryIds.includes(item.category_id);
                   return (
                     <Link className="card-link" to={`/categories/${item.category_id}`} key={item.category_id}>
                       <article
@@ -560,36 +659,73 @@ function Feedback() {
                         }`}
                       >
                         <div className="feedback-category-title">{item.category_name}</div>
-
-                        <div className="feedback-stacked-bar">
-                          <div
-                            className="segment concern"
-                            style={{ width: `${item.concernPercent}%` }}
-                          >
-                            {item.concernPercent}%
-                          </div>
-                          <div
-                            className="segment somewhat"
-                            style={{ width: `${item.somewhatPercent}%` }}
-                          >
-                            {item.somewhatPercent}%
-                          </div>
-                          <div className="segment very" style={{ width: `${item.veryPercent}%` }}>
-                            {item.veryPercent}%
-                          </div>
+                        <div className="feedback-category-headline">
+                          <strong>{item.concernPercent}%</strong>
+                          <span>Not reasonable</span>
+                          <small>
+                            {item.total}{" "}
+                            {selectedCategoryVoteRank === "all"
+                              ? `vote${item.total === 1 ? "" : "s"}`
+                              : `${selectedCategoryVoteRank}-${
+                                  item.total === 1 ? "rank vote" : "rank votes"
+                                }`}
+                          </small>
                         </div>
+                        {item.hasLimitedData ? (
+                          <div className="feedback-low-data-flag">Limited responses</div>
+                        ) : null}
 
-                        <div className="feedback-legend-row">
-                          <span><i className="legend-dot concern" />not reasonable</span>
-                          <span><i className="legend-dot somewhat" />somewhat</span>
-                          <span><i className="legend-dot very" />very</span>
-                        </div>
+                        <button
+                          type="button"
+                          className="feedback-breakdown-toggle"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            toggleCategoryBreakdown(item.category_id);
+                          }}
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? "Hide breakdown" : "View full breakdown"}
+                        </button>
+
+                        {isExpanded ? (
+                          <>
+                            <div className="feedback-stacked-bar">
+                              <div
+                                className="segment concern"
+                                style={{ width: `${item.concernPercent}%` }}
+                              >
+                                {item.concernPercent}%
+                              </div>
+                              <div
+                                className="segment somewhat"
+                                style={{ width: `${item.somewhatPercent}%` }}
+                              >
+                                {item.somewhatPercent}%
+                              </div>
+                              <div className="segment very" style={{ width: `${item.veryPercent}%` }}>
+                                {item.veryPercent}%
+                              </div>
+                            </div>
+
+                            <div className="feedback-legend-row">
+                              <span><i className="legend-dot concern" />not reasonable</span>
+                              <span><i className="legend-dot somewhat" />somewhat</span>
+                              <span><i className="legend-dot very" />reasonable</span>
+                            </div>
+                          </>
+                        ) : null}
 
                         <div className="feedback-see-detail">see category detail</div>
                       </article>
                     </Link>
                   );
                 })}
+                {!categorySentiment.length ? (
+                  <div className="feedback-subtext">
+                    No category votes from {selectedCategoryVoteRankLabel} in {selectedPeriodLabel}.
+                  </div>
+                ) : null}
                 </div>
               </div>
             </section>
@@ -602,6 +738,11 @@ function Feedback() {
               <p className="feedback-subtext">
                 Share of recorded MP-profile votes marked &quot;Not reasonable&quot;
               </p>
+              {rankSentimentHasLimitedData ? (
+                <div className="feedback-low-data-note">
+                  Early signal only: MP-rank sentiment for {selectedPeriodLabel} is still based on a small number of votes.
+                </div>
+              ) : null}
 
               <div className="feedback-rank-chart">
                 {rankSentiment.map((item) => (
@@ -622,7 +763,7 @@ function Feedback() {
               </div>
 
               <div className="feedback-rank-summary">
-                {strongestRank?.rank || "Head"} MPs most often rated &quot;Not reasonable&quot; (
+                {strongestRank?.rank || "Head"} MPs currently have the highest share of &quot;Not reasonable&quot; votes (
                 {strongestRank?.percent || 0}% from {strongestRank?.notReasonable || 0}/
                 {strongestRank?.total || 0} votes)
               </div>

@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchJson, formatCurrency } from "../lib/api";
+import { resolveCategoryIcon } from "../lib/categoryIcons";
 
 const iconMap = {
   house: Home,
@@ -25,6 +26,7 @@ const iconMap = {
   smartphone: Smartphone,
   users: Users,
   "building-2": Building2,
+  "shield-user": ShieldUser,
 };
 
 function isCurrentOrPastPeriod(period) {
@@ -68,6 +70,12 @@ function formatVariance(value) {
   return `${sign} ${Math.abs(numericValue).toFixed(0)}%`;
 }
 
+function formatVarianceCompact(value) {
+  const numericValue = Number(value || 0);
+  const sign = numericValue > 0 ? "+" : numericValue < 0 ? "-" : "";
+  return `${sign}${Math.abs(numericValue).toFixed(0)}%`;
+}
+
 function formatDate(value) {
   if (!value) {
     return "No recent update";
@@ -78,19 +86,6 @@ function formatDate(value) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function getVarianceLabel(value) {
-  const numericValue = Number(value || 0);
-  if (numericValue > 5) {
-    return "above Benchmark";
-  }
-
-  if (numericValue < -5) {
-    return "below Benchmark";
-  }
-
-  return "around Benchmark";
 }
 
 function getCardTone(value) {
@@ -107,8 +102,33 @@ function getCardTone(value) {
   return "mid";
 }
 
+function formatAllowanceRange(minValue, maxValue) {
+  const min = Number(minValue || 0);
+  const max = Number(maxValue || 0);
+
+  if (Math.abs(max - min) < 1) {
+    return formatCompactCurrency(max);
+  }
+
+  if (min >= 1000000 && max >= 1000000) {
+    const minCompact = min / 1000000;
+    const maxCompact = max / 1000000;
+    const minDisplay = Number.isInteger(minCompact)
+      ? minCompact.toFixed(0)
+      : minCompact.toFixed(1);
+    const maxDisplay = Number.isInteger(maxCompact)
+      ? maxCompact.toFixed(0)
+      : maxCompact.toFixed(1);
+
+    return `Rp. ${minDisplay}-${maxDisplay}m`;
+  }
+
+  return `${formatCompactCurrency(min)} - ${formatCompactCurrency(max)}`;
+}
+
 function buildCategoryView(records) {
   const grouped = new Map();
+  const rankOrder = ["Head", "Vice", "Member"];
 
   records.forEach((record) => {
     const existing = grouped.get(record.category_id) || {
@@ -120,6 +140,11 @@ function buildCategoryView(records) {
       varianceTotal: 0,
       latestUpdated: record.last_updated,
       entries: 0,
+      rankTotals: {
+        Head: { allowanceTotal: 0, varianceTotal: 0, entries: 0 },
+        Vice: { allowanceTotal: 0, varianceTotal: 0, entries: 0 },
+        Member: { allowanceTotal: 0, varianceTotal: 0, entries: 0 },
+      },
     };
 
     if (!existing.benchmarkValue && Number(record.benchmark_value || 0)) {
@@ -127,6 +152,10 @@ function buildCategoryView(records) {
     }
     existing.varianceTotal += Number(record.variance_percent || 0);
     existing.entries += 1;
+    const rankKey = rankOrder.includes(record.mp_rank) ? record.mp_rank : "Member";
+    existing.rankTotals[rankKey].allowanceTotal += Number(record.allowance_cap || 0);
+    existing.rankTotals[rankKey].varianceTotal += Number(record.variance_percent || 0);
+    existing.rankTotals[rankKey].entries += 1;
 
     if (
       !existing.latestUpdated ||
@@ -138,10 +167,25 @@ function buildCategoryView(records) {
     grouped.set(record.category_id, existing);
   });
 
-  return Array.from(grouped.values()).map((item) => ({
-    ...item,
-    varianceAverage: item.entries ? item.varianceTotal / item.entries : 0,
-  }));
+  return Array.from(grouped.values()).map((item) => {
+    const rankSummaries = rankOrder.map((rank) => {
+      const totals = item.rankTotals[rank];
+      return {
+        rank,
+        allowanceAverage: totals.entries ? totals.allowanceTotal / totals.entries : 0,
+        varianceAverage: totals.entries ? totals.varianceTotal / totals.entries : 0,
+      };
+    });
+    const allowanceValues = rankSummaries.map((summary) => Number(summary.allowanceAverage || 0));
+
+    return {
+      ...item,
+      varianceAverage: item.entries ? item.varianceTotal / item.entries : 0,
+      rankSummaries,
+      allowanceRangeMin: Math.min(...allowanceValues),
+      allowanceRangeMax: Math.max(...allowanceValues),
+    };
+  });
 }
 
 function buildMemberView(records) {
@@ -162,11 +206,14 @@ function buildMemberView(records) {
       } ${record.party_abbreviation || ""}`.trim(),
       monthlySpend: 0,
       varianceTotal: 0,
+      maxVariance: Number.NEGATIVE_INFINITY,
       entries: 0,
     };
 
+    const variance = Number(record.variance_percent || 0);
     existing.monthlySpend += Number(record.actual_spend || 0);
-    existing.varianceTotal += Number(record.variance_percent || 0);
+    existing.varianceTotal += variance;
+    existing.maxVariance = Math.max(existing.maxVariance, variance);
     existing.entries += 1;
 
     grouped.set(record.mp_id, existing);
@@ -189,6 +236,7 @@ function Allowances() {
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
   const [isPartyMenuOpen, setIsPartyMenuOpen] = useState(false);
   const [isRankMenuOpen, setIsRankMenuOpen] = useState(false);
+  const [showMemberFilters, setShowMemberFilters] = useState(true);
   const [varianceThreshold, setVarianceThreshold] = useState(0);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,6 +253,7 @@ function Allowances() {
     const requestedRank = searchParams.get("rank");
     const requestedPeriod = searchParams.get("period");
     const requestedThreshold = searchParams.get("threshold");
+    const requestedFilters = searchParams.get("filters");
 
     if (requestedView === "category" || requestedView === "member") {
       setViewMode(requestedView);
@@ -235,6 +284,14 @@ function Allowances() {
       setVarianceThreshold(Number.isFinite(parsedThreshold) ? parsedThreshold : 0);
     } else {
       setVarianceThreshold(0);
+    }
+
+    if (requestedFilters === "open") {
+      setShowMemberFilters(true);
+    } else if (requestedFilters === "closed") {
+      setShowMemberFilters(false);
+    } else {
+      setShowMemberFilters(requestedView !== "member");
     }
   }, [searchParams]);
 
@@ -379,31 +436,6 @@ function Allowances() {
       .sort((a, b) => Math.abs(b.varianceAverage) - Math.abs(a.varianceAverage));
   }, [filteredRecords, searchTerm]);
 
-  const memberItems = useMemo(() => {
-    const items = buildMemberView(filteredRecords).filter((item) => {
-      const matchesSearch = item.searchText
-        .toLowerCase()
-        .includes(searchTerm.trim().toLowerCase());
-      const matchesParty =
-        selectedParty === "all" ||
-        item.party === selectedParty ||
-        item.partyName === selectedParty;
-      const matchesRank =
-        selectedRankFilter === "all" ||
-        String(item.rank || "").toLowerCase() === String(selectedRankFilter).toLowerCase();
-      const matchesThreshold =
-        varianceThreshold <= 0 || Number(item.varianceAverage) > varianceThreshold;
-
-      return matchesSearch && matchesParty && matchesRank && matchesThreshold;
-    });
-
-    if (sortMode === "alphabetical") {
-      return items.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    return items.sort((a, b) => Math.abs(b.varianceAverage) - Math.abs(a.varianceAverage));
-  }, [filteredRecords, searchTerm, selectedParty, selectedRankFilter, sortMode, varianceThreshold]);
-
   const memberPartyOptions = useMemo(() => {
     const options = Array.from(
       new Set(
@@ -422,6 +454,46 @@ function Allowances() {
     { value: "Vice", label: "Vice" },
     { value: "Member", label: "Member" },
   ];
+
+  const selectedPeriodLabel =
+    periods.find((period) => String(period.period_id) === String(selectedPeriod))?.label ||
+    "selected period";
+  const isThresholdFilterActive = varianceThreshold > 0;
+  const isDashboardScopedView = searchParams.get("source") === "dashboard" && isThresholdFilterActive;
+
+  const memberFilterOutcome = useMemo(() => {
+    const baseItems = buildMemberView(filteredRecords).filter((item) => {
+      const matchesSearch = item.searchText
+        .toLowerCase()
+        .includes(searchTerm.trim().toLowerCase());
+      const matchesParty =
+        selectedParty === "all" ||
+        item.party === selectedParty ||
+        item.partyName === selectedParty;
+      const matchesRank =
+        selectedRankFilter === "all" ||
+        String(item.rank || "").toLowerCase() === String(selectedRankFilter).toLowerCase();
+
+      return matchesSearch && matchesParty && matchesRank;
+    });
+
+    const thresholdItems = baseItems.filter(
+      (item) => varianceThreshold <= 0 || Number(item.maxVariance) > varianceThreshold
+    );
+
+    const sortedItems =
+      sortMode === "alphabetical"
+        ? thresholdItems.sort((a, b) => a.name.localeCompare(b.name))
+        : thresholdItems.sort((a, b) => Math.abs(b.varianceAverage) - Math.abs(a.varianceAverage));
+
+    return {
+      items: sortedItems,
+      baseCount: baseItems.length,
+    };
+  }, [filteredRecords, searchTerm, selectedParty, selectedRankFilter, sortMode, varianceThreshold]);
+
+  const memberItems = memberFilterOutcome.items;
+  const memberBaseCount = memberFilterOutcome.baseCount;
 
   return (
     <div className="allowances-page">
@@ -486,6 +558,26 @@ function Allowances() {
         </div>
 
         {viewMode === "member" && (
+          <div className="member-filters-compact-bar">
+            <button
+              type="button"
+              className="member-filters-toggle"
+              onClick={() => {
+                const nextOpen = !showMemberFilters;
+                setShowMemberFilters(nextOpen);
+                setSearchParams((params) => {
+                  const next = new URLSearchParams(params);
+                  next.set("filters", nextOpen ? "open" : "closed");
+                  return next;
+                });
+              }}
+            >
+              {showMemberFilters ? "Hide filters" : "Edit filters"}
+            </button>
+          </div>
+        )}
+
+        {viewMode === "member" && showMemberFilters && (
           <div className="member-controls">
               <div className="control-group">
                 <div className="control-label">
@@ -684,13 +776,37 @@ function Allowances() {
           </div>
         )}
 
+        {viewMode === "member" && isDashboardScopedView && (
+          <div className="dashboard-context-banner" role="status">
+            <p>
+              Dashboard filter active: showing MPs with any category variance above{" "}
+              <strong>{varianceThreshold}%</strong> in <strong>{selectedPeriodLabel}</strong>.
+            </p>
+            <button
+              type="button"
+              className="dashboard-context-clear"
+              onClick={() => {
+                setSearchParams((params) => {
+                  const next = new URLSearchParams(params);
+                  next.delete("threshold");
+                  next.delete("source");
+                  return next;
+                });
+              }}
+            >
+              Show all MPs
+            </button>
+          </div>
+        )}
+
         {loading && <div className="card status-card">Loading allowances...</div>}
         {error && <div className="card status-card error-card">{error}</div>}
 
         {!loading && !error && viewMode === "category" && (
           <>
             {categoryItems.map((item) => {
-              const Icon = iconMap[item.iconName] || Home;
+              const { iconKey } = resolveCategoryIcon(item.title, item.iconName);
+              const Icon = iconMap[iconKey] || iconMap[item.iconName] || Home;
               const toneClass = getCardTone(item.varianceAverage);
 
               return (
@@ -709,25 +825,37 @@ function Allowances() {
                         <div className="allowance-big-value">
                           {formatCompactCurrency(item.benchmarkValue)}
                         </div>
-                        <div className="allowance-small-label">Benchmark Value</div>
+                        <div className="allowance-small-label">Market Benchmark</div>
                       </div>
 
-                      <div className={`variance-highlight ${toneClass}`}>
+                      <div className="allowance-range-highlight">
                         <div className="allowance-big-value">
-                          {formatVariance(item.varianceAverage)}
+                          {formatAllowanceRange(item.allowanceRangeMin, item.allowanceRangeMax)}
                         </div>
                         <div className="allowance-small-label">
-                          {getVarianceLabel(item.varianceAverage)}
+                          Allowance range by rank
                         </div>
                       </div>
                     </div>
 
+                    <div className="allowance-rank-chip-row" aria-label="Rank comparison versus benchmark">
+                      {item.rankSummaries.map((summary) => (
+                        <span
+                          key={`${item.id}-${summary.rank}`}
+                          className={`allowance-rank-chip ${getCardTone(summary.varianceAverage)}`}
+                        >
+                          {summary.rank} {formatVarianceCompact(summary.varianceAverage)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="allowance-rank-chip-note">Difference vs market benchmark</div>
+
                     <div className="allowance-update">
-                      Update: {formatDate(item.latestUpdated)}
+                      as of {formatDate(item.latestUpdated)}
                     </div>
                   </div>
 
-                  <div className={`allowance-see-more ${toneClass}`}>see more...</div>
+                  <div className={`allowance-see-more ${toneClass}`}>See details</div>
                 </article>
                 </Link>
               );
@@ -737,6 +865,22 @@ function Allowances() {
 
         {!loading && !error && viewMode === "member" && (
           <section className="member-list-section">
+            <p className="member-results-summary">
+              Showing <strong>{memberItems.length}</strong> of <strong>{memberBaseCount}</strong>{" "}
+              MPs
+              {isDashboardScopedView
+                ? ` after dashboard threshold (${varianceThreshold}%+ variance).`
+                : isThresholdFilterActive
+                  ? ` after variance threshold (${varianceThreshold}%+).`
+                : "."}
+            </p>
+
+            {memberItems.length === 0 && (
+              <article className="card status-card">
+                No MPs match your current filters. Adjust filters to broaden the list.
+              </article>
+            )}
+
             {memberItems.map((item, index) => {
               const isPositive = Number(item.varianceAverage) > 0;
               const isNegative = Number(item.varianceAverage) < 0;

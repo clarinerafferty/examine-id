@@ -812,6 +812,22 @@ FROM MPAllowanceRecord office
 WHERE office.category_id = 2
   AND office.mp_id BETWEEN 1 AND 20;
 
+-- Apply rank-based allowance differentiation so Head/Vice/Member can carry different
+-- allowance allocations for the same category-period.
+UPDATE MPAllowanceRecord mar
+JOIN MP m
+  ON m.mp_id = mar.mp_id
+SET mar.allowance_cap = ROUND(
+  mar.allowance_cap *
+  CASE m.mp_rank
+    WHEN 'Head' THEN 1.10
+    WHEN 'Vice' THEN 1.05
+    ELSE 1.00
+  END,
+  2
+)
+WHERE mar.mp_id BETWEEN 1 AND 20;
+
 UPDATE MPAllowanceRecord mar
 JOIN CategoryBenchmark cb
   ON cb.category_id = mar.category_id

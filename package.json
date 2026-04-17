@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "dev": "npm.cmd run dev --prefix client",
+    "dev:client": "npm.cmd run dev --prefix client",
+    "dev:server": "npm.cmd run start --prefix server"
+  },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

@@ -7,7 +7,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   fetchJson,
   formatCurrency,
@@ -33,6 +33,18 @@ function formatVarianceText(value) {
 function formatAxisCompactCurrency(value) {
   const numericValue = Number(value || 0);
   return `Rp ${Number((numericValue / 1000000).toFixed(0))}M`;
+}
+
+function formatDisplayDate(value) {
+  if (!value) {
+    return "No recent update";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function createSmoothPath(points) {
@@ -124,17 +136,30 @@ function CategoryDetail() {
   const [selectedTopSpendersPeriod, setSelectedTopSpendersPeriod] = useState("");
   const [selectedChartYear, setSelectedChartYear] = useState("");
   const [activeChartPoint, setActiveChartPoint] = useState(null);
+  const [activeRankBarPoint, setActiveRankBarPoint] = useState(null);
   const [isYearMenuOpen, setIsYearMenuOpen] = useState(false);
+  const [isHeroPeriodMenuOpen, setIsHeroPeriodMenuOpen] = useState(false);
   const [isVarianceMenuOpen, setIsVarianceMenuOpen] = useState(false);
   const [isTopSpendersMenuOpen, setIsTopSpendersMenuOpen] = useState(false);
+  const [isBenchmarkInfoOpen, setIsBenchmarkInfoOpen] = useState(false);
+  const [isBudgetInfoOpen, setIsBudgetInfoOpen] = useState(false);
+  const [isRankInfoOpen, setIsRankInfoOpen] = useState(false);
+  const [isTopSpendersInfoOpen, setIsTopSpendersInfoOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [hasSubmittedFeedback, setHasSubmittedFeedback] = useState(false);
+  const [isRankTogglePinned, setIsRankTogglePinned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const yearMenuRef = useRef(null);
+  const heroPeriodMenuRef = useRef(null);
   const varianceMenuRef = useRef(null);
   const topSpendersMenuRef = useRef(null);
+  const rankToggleRef = useRef(null);
+  const categoryFeedbackType = useMemo(
+    () => `sentiment_${String(selectedRank || "member").toLowerCase()}`,
+    [selectedRank]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -195,6 +220,7 @@ function CategoryDetail() {
           (item) =>
             String(item.category_id) === String(id) &&
             String(item.period_id) === String(selectedPeriod) &&
+            String(item.feedback_type) === String(categoryFeedbackType) &&
             item.session_hash === sessionHash
         );
 
@@ -204,7 +230,7 @@ function CategoryDetail() {
 
         if (existingVote) {
           setHasSubmittedFeedback(true);
-          setFeedbackMessage("Anonymous vote recorded for this period");
+          setFeedbackMessage(`Anonymous vote recorded for ${selectedRank} MPs this period`);
         } else {
           setHasSubmittedFeedback(false);
           setFeedbackMessage("");
@@ -222,7 +248,37 @@ function CategoryDetail() {
     return () => {
       isMounted = false;
     };
-  }, [id, selectedPeriod]);
+  }, [categoryFeedbackType, id, selectedPeriod, selectedRank]);
+
+  useEffect(() => {
+    function updateRankTogglePinned() {
+      if (!rankToggleRef.current) {
+        return;
+      }
+
+      const top = rankToggleRef.current.getBoundingClientRect().top;
+      setIsRankTogglePinned(top <= 10);
+    }
+
+    updateRankTogglePinned();
+    window.addEventListener("scroll", updateRankTogglePinned, { passive: true });
+    window.addEventListener("resize", updateRankTogglePinned);
+
+    return () => {
+      window.removeEventListener("scroll", updateRankTogglePinned);
+      window.removeEventListener("resize", updateRankTogglePinned);
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasModalOpen = isBudgetInfoOpen || isRankInfoOpen || isTopSpendersInfoOpen;
+
+    document.body.classList.toggle("modal-open", hasModalOpen);
+
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, [isBudgetInfoOpen, isRankInfoOpen, isTopSpendersInfoOpen]);
 
   const category = categories.find((item) => Number(item.category_id) === Number(id));
   const mpMap = useMemo(() => new Map(mps.map((item) => [item.mp_id, item])), [mps]);
@@ -305,6 +361,10 @@ function CategoryDetail() {
         setIsYearMenuOpen(false);
       }
 
+      if (!heroPeriodMenuRef.current?.contains(event.target)) {
+        setIsHeroPeriodMenuOpen(false);
+      }
+
       if (!varianceMenuRef.current?.contains(event.target)) {
         setIsVarianceMenuOpen(false);
       }
@@ -314,10 +374,18 @@ function CategoryDetail() {
       }
     }
 
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsBenchmarkInfoOpen(false);
+      }
+    }
+
     document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
@@ -345,26 +413,13 @@ function CategoryDetail() {
     );
   }, [benchmarks]);
 
-  const headlineSpend = useMemo(() => {
+  const headlineAllowance = useMemo(() => {
     if (!selectedRankLatest.length) {
       return 0;
     }
 
     const total = selectedRankLatest.reduce(
-      (sum, record) => sum + Number(record.actual_spend || 0),
-      0
-    );
-
-    return total / selectedRankLatest.length;
-  }, [selectedRankLatest]);
-
-  const headlineVariance = useMemo(() => {
-    if (!selectedRankLatest.length) {
-      return 0;
-    }
-
-    const total = selectedRankLatest.reduce(
-      (sum, record) => sum + Number(record.variance_percent || 0),
+      (sum, record) => sum + Number(record.allowance_cap || 0),
       0
     );
 
@@ -372,6 +427,46 @@ function CategoryDetail() {
   }, [selectedRankLatest]);
 
   const currentBenchmark = benchmarkMap.get(String(selectedPeriod)) || 0;
+  const headlineVariance = useMemo(() => {
+    if (!currentBenchmark) {
+      return 0;
+    }
+
+    return ((headlineAllowance - currentBenchmark) / currentBenchmark) * 100;
+  }, [headlineAllowance, currentBenchmark]);
+  const selectedPeriodLabel =
+    periods.find((period) => String(period.period_id) === String(selectedPeriod))?.label ||
+    "Select period";
+  const selectedPeriodIndex = periods.findIndex(
+    (period) => String(period.period_id) === String(selectedPeriod)
+  );
+  const previousPeriod = selectedPeriodIndex > 0 ? periods[selectedPeriodIndex - 1] : null;
+  const previousBenchmark = previousPeriod
+    ? benchmarkMap.get(String(previousPeriod.period_id)) || 0
+    : 0;
+  const benchmarkMoMPercent =
+    previousBenchmark > 0
+      ? ((currentBenchmark - previousBenchmark) / previousBenchmark) * 100
+      : null;
+  const benchmarkGapAmount = headlineAllowance - currentBenchmark;
+
+  const heroLastUpdated = useMemo(() => {
+    if (!selectedRankLatest.length) {
+      return "";
+    }
+
+    const latest = selectedRankLatest.reduce((latestRecord, record) => {
+      if (!latestRecord) {
+        return record;
+      }
+
+      return new Date(record.last_updated) > new Date(latestRecord.last_updated)
+        ? record
+        : latestRecord;
+    }, null);
+
+    return latest?.last_updated || "";
+  }, [selectedRankLatest]);
 
   const lineChartData = useMemo(() => {
     return periods
@@ -391,12 +486,16 @@ function CategoryDetail() {
         ? rankSpendRecords.reduce((sum, record) => sum + Number(record.actual_spend || 0), 0) /
           rankSpendRecords.length
         : 0;
+      const rankAverageAllowance = rankSpendRecords.length
+        ? rankSpendRecords.reduce((sum, record) => sum + Number(record.allowance_cap || 0), 0) /
+          rankSpendRecords.length
+        : 0;
 
       return {
         label: period.label,
         monthLabel: period.month_name?.slice(0, 3) || period.label.slice(0, 3),
         fullMonthLabel: period.label,
-        allowanceCap: periodRecords[0] ? Number(periodRecords[0].allowance_cap || 0) : 0,
+        allowanceCap: rankAverageAllowance || (periodRecords[0] ? Number(periodRecords[0].allowance_cap || 0) : 0),
         marketPrice: benchmarkMap.get(String(period.period_id)) || 0,
         medianSpendMp: averageSpend || rankAverageSpend,
       };
@@ -470,10 +569,52 @@ function CategoryDetail() {
         ? periodRecords.reduce((sum, record) => sum + Number(record.variance_percent || 0), 0) /
           periodRecords.length
         : 0;
+      const averageVarianceAmount = periodRecords.length
+        ? periodRecords.reduce((sum, record) => sum + Number(record.variance_amount || 0), 0) /
+          periodRecords.length
+        : 0;
 
       return {
         rank,
         variance: averageVariance,
+        varianceAmount: averageVarianceAmount,
+      };
+    });
+  }, [records, selectedVariancePeriod]);
+
+  const rankBreakdown = useMemo(() => {
+    const ranks = ["Head", "Vice", "Member"];
+
+    return ranks.map((rank) => {
+      const variances = records
+        .filter(
+          (record) =>
+            record.mp_rank === rank &&
+            String(record.period_id) === String(selectedVariancePeriod)
+        )
+        .map((record) => Number(record.variance_percent || 0))
+        .sort((a, b) => a - b);
+
+      const total = variances.length;
+      const aboveCount = variances.filter((value) => value > 5).length;
+      const belowCount = variances.filter((value) => value < -5).length;
+      const nearCount = total - aboveCount - belowCount;
+      const median =
+        !total
+          ? 0
+          : total % 2 === 1
+            ? variances[(total - 1) / 2]
+            : (variances[total / 2 - 1] + variances[total / 2]) / 2;
+
+      return {
+        rank,
+        total,
+        aboveCount,
+        belowCount,
+        nearCount,
+        minVariance: total ? variances[0] : 0,
+        maxVariance: total ? variances[total - 1] : 0,
+        median,
       };
     });
   }, [records, selectedVariancePeriod]);
@@ -521,6 +662,7 @@ function CategoryDetail() {
       return {
         ...item,
         variance,
+        varianceAmount: Number(item.varianceAmount || 0),
         direction: variance >= 0 ? "positive" : "negative",
         centerX,
         x: centerX - barWidth / 2,
@@ -546,6 +688,16 @@ function CategoryDetail() {
     };
   }, [rankBars]);
 
+  const budgetChartYearLabel = selectedChartYear || yearOptions[yearOptions.length - 1] || "2026";
+
+  const selectedVariancePeriodLabel =
+    periods.find((period) => String(period.period_id) === String(selectedVariancePeriod))?.label ||
+    "the selected month";
+
+  useEffect(() => {
+    setActiveRankBarPoint(null);
+  }, [selectedVariancePeriod]);
+
   const topSpenders = useMemo(() => {
     return records
       .filter((record) => String(record.period_id) === String(selectedTopSpendersPeriod))
@@ -563,7 +715,7 @@ function CategoryDetail() {
 
     try {
       await postJson("/api/feedback", {
-        feedback_type: "sentiment",
+        feedback_type: categoryFeedbackType,
         category_id: Number(id),
         period_id: Number(selectedPeriod),
         response_value: responseValue,
@@ -571,11 +723,11 @@ function CategoryDetail() {
         source_page: `/categories/${id}`,
       });
       await fetchJson(`/api/feedback?category_id=${id}`);
-      setFeedbackMessage("Anonymous vote recorded for this period");
+      setFeedbackMessage(`Anonymous vote recorded for ${selectedRank} MPs this period`);
       setHasSubmittedFeedback(true);
     } catch (error) {
       if (error instanceof Error && error.status === 409) {
-        setFeedbackMessage("Anonymous vote recorded for this period");
+        setFeedbackMessage(`Anonymous vote recorded for ${selectedRank} MPs this period`);
         setHasSubmittedFeedback(true);
       } else {
         setFeedbackMessage("Unable to save feedback right now");
@@ -594,47 +746,108 @@ function CategoryDetail() {
 
         {!loading && !error && (
           <>
-            <div className="rank-toggle-group">
-              {["Head", "Vice", "Member"].map((rank) => (
-                <button
-                  key={rank}
-                  type="button"
-                  className={selectedRank === rank ? "active" : ""}
-                  onClick={() => setSelectedRank(rank)}
-                >
-                  {rank.toUpperCase()} MP
-                </button>
-              ))}
+            <div ref={rankToggleRef} className="rank-toggle-sticky">
+              <div className={`rank-toggle-group ${isRankTogglePinned ? "pinned" : ""}`}>
+                {["Head", "Vice", "Member"].map((rank) => (
+                  <button
+                    key={rank}
+                    type="button"
+                    className={selectedRank === rank ? "active" : ""}
+                    onClick={() => setSelectedRank(rank)}
+                  >
+                    {rank.toUpperCase()} MP
+                  </button>
+                ))}
+              </div>
             </div>
 
             <section className="category-hero-stat">
-              <div className="category-hero-label">
-                {`${category?.category_name || "Allowance"} Allowance Given (Per Month)`}
+              <div className="category-hero-topline">
+                <div className="category-hero-label">
+                  {`${category?.category_name || "Allowance"} ALLOWANCE (MONTHLY)`}
+                </div>
+                <div
+                  className={`dark-period-wrap ${isHeroPeriodMenuOpen ? "open" : ""}`}
+                  ref={heroPeriodMenuRef}
+                >
+                  <button
+                    type="button"
+                    className="dark-period-pill dark-period-trigger category-hero-period-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={isHeroPeriodMenuOpen}
+                    aria-label="Select period for headline allowance"
+                    onClick={() => setIsHeroPeriodMenuOpen((current) => !current)}
+                  >
+                    <CalendarDays size={12} />
+                    {selectedPeriodLabel}
+                    <ChevronDown size={12} />
+                  </button>
+                  {isHeroPeriodMenuOpen ? (
+                    <div className="dark-period-menu" role="listbox">
+                      {periods.map((period) => (
+                        <button
+                          key={period.period_id}
+                          type="button"
+                          className={`dark-period-option ${
+                            String(period.period_id) === String(selectedPeriod) ? "active" : ""
+                          }`}
+                          role="option"
+                          aria-selected={String(period.period_id) === String(selectedPeriod)}
+                          onClick={() => {
+                            setSelectedPeriod(String(period.period_id));
+                            setIsHeroPeriodMenuOpen(false);
+                          }}
+                        >
+                          {period.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div className="category-hero-value">
                 <HandCoins size={20} />
-                <span>{formatCompactCurrency(headlineSpend)}</span>
+                <span>{formatCompactCurrency(headlineAllowance)}</span>
               </div>
-              <div className="category-hero-chip">
-                Allowance is <strong>{formatVarianceText(headlineVariance)}</strong>{" "}
-                {headlineVariance >= 0 ? "Above" : "Below"} Category Benchmark
+              <div className="category-hero-helper">
+                Monthly allowance given for {selectedRank} MP
               </div>
-              <div className="category-hero-benchmark">
-                National median{" "}
-                <span className="category-hero-benchmark-name">
-                  {category?.category_name?.toLowerCase() || "category"}
-                </span>{" "}
-                benchmark:
+
+              <div className="category-hero-meta-row">
+                <div className="category-hero-chip">
+                  <strong>{formatVarianceText(headlineVariance)}</strong>{" "}
+                  {headlineVariance >= 0 ? "above" : "below"} market benchmark
+                </div>
+                <div className="category-hero-updated">
+                  Updated: {formatDisplayDate(heroLastUpdated)}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="category-hero-detail-card category-hero-detail-card-button"
+                onClick={() => setIsBenchmarkInfoOpen(true)}
+                aria-label="Open benchmark details"
+              >
+                <span className="category-hero-benchmark-label">
+                  Market benchmark (national median)
+                </span>
                 <strong className="category-hero-benchmark-value">
                   {formatCompactCurrency(currentBenchmark)}
                 </strong>
-              </div>
+                <span className="category-hero-period-note">
+                  as of {selectedPeriodLabel}
+                </span>
+              </button>
             </section>
 
             <section className="category-feedback-panel">
               <div className="profile-feedback-title">
                 <CircleHelp size={25} />
-                <span>How appropriate is this {category?.category_name?.toLowerCase()} allowance?</span>
+                <span>
+                  How appropriate is this {category?.category_name?.toLowerCase()} allowance for{" "}
+                  {selectedRank} MPs?
+                </span>
               </div>
 
               <div className="category-feedback-buttons">
@@ -674,10 +887,22 @@ function CategoryDetail() {
                   </span>
                   About right
                 </button>
+                <button
+                  type="button"
+                  className={`feedback-choice low ${hasSubmittedFeedback ? "submitted" : ""}`}
+                  onClick={() => submitFeedback("too_low")}
+                  disabled={submittingFeedback || hasSubmittedFeedback}
+                >
+                  <span className="feedback-choice-icon too-low" aria-hidden="true">
+                    <i className="feedback-choice-bar dark" />
+                    <i className="feedback-choice-bar accent" />
+                  </span>
+                  Too low
+                </button>
               </div>
 
               <p className="feedback-anonymous-note">
-                One anonymous vote per browser per period.
+                One anonymous vote per browser, per period, per rank tab.
               </p>
 
               {(submittingFeedback || hasSubmittedFeedback) && (
@@ -720,41 +945,54 @@ function CategoryDetail() {
         <div className="category-profile-sheet">
           <section className="dark-panel">
             <div className="dark-panel-header">
-              <h2>Budget vs. Benchmark</h2>
-              <div
-                className={`dark-period-wrap ${isYearMenuOpen ? "open" : ""}`}
-                ref={yearMenuRef}
-              >
+              <div className="dark-panel-title-wrap">
+                <h2>Budget vs. Benchmark</h2>
+                <p className="chart-subtitle">Monthly comparison for selected rank and category</p>
+              </div>
+              <div className="dark-panel-actions">
+                <div
+                  className={`dark-period-wrap ${isYearMenuOpen ? "open" : ""}`}
+                  ref={yearMenuRef}
+                >
+                  <button
+                    type="button"
+                    className="dark-period-pill dark-period-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={isYearMenuOpen}
+                    onClick={() => setIsYearMenuOpen((current) => !current)}
+                  >
+                    <CalendarDays size={12} />
+                    {budgetChartYearLabel}
+                    <ChevronDown size={12} />
+                  </button>
+                  {isYearMenuOpen ? (
+                    <div className="dark-period-menu" role="listbox">
+                      {yearOptions.map((year) => (
+                        <button
+                          key={year}
+                          type="button"
+                          className={`dark-period-option ${year === selectedChartYear ? "active" : ""}`}
+                          role="option"
+                          aria-selected={year === selectedChartYear}
+                          onClick={() => {
+                            setSelectedChartYear(year);
+                            setIsYearMenuOpen(false);
+                          }}
+                        >
+                          {year}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   type="button"
-                  className="dark-period-pill dark-period-trigger"
-                  aria-haspopup="listbox"
-                  aria-expanded={isYearMenuOpen}
-                  onClick={() => setIsYearMenuOpen((current) => !current)}
+                  className="rank-chart-info-button"
+                  onClick={() => setIsBudgetInfoOpen(true)}
+                  aria-label="Open budget vs benchmark details"
                 >
-                  <CalendarDays size={12} />
-                  {selectedChartYear || yearOptions[yearOptions.length - 1] || "2026"}
-                  <ChevronDown size={12} />
+                  <CircleHelp size={15} />
                 </button>
-                {isYearMenuOpen ? (
-                  <div className="dark-period-menu" role="listbox">
-                    {yearOptions.map((year) => (
-                      <button
-                        key={year}
-                        type="button"
-                        className={`dark-period-option ${year === selectedChartYear ? "active" : ""}`}
-                        role="option"
-                        aria-selected={year === selectedChartYear}
-                        onClick={() => {
-                          setSelectedChartYear(year);
-                          setIsYearMenuOpen(false);
-                        }}
-                      >
-                        {year}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
 
@@ -840,7 +1078,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.allowanceY,
-                          label: `${item.fullMonthLabel} Allowance Cap`,
+                          label: `${item.fullMonthLabel} Allowance given`,
                           value: formatCompactCurrency(item.allowanceCap),
                         })
                       }
@@ -849,7 +1087,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.allowanceY,
-                          label: `${item.fullMonthLabel} Allowance Cap`,
+                          label: `${item.fullMonthLabel} Allowance given`,
                           value: formatCompactCurrency(item.allowanceCap),
                         })
                       }
@@ -863,7 +1101,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.marketY,
-                          label: `${item.fullMonthLabel} Benchmark`,
+                          label: `${item.fullMonthLabel} Market benchmark`,
                           value: formatCompactCurrency(item.marketPrice),
                         })
                       }
@@ -872,7 +1110,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.marketY,
-                          label: `${item.fullMonthLabel} Benchmark`,
+                          label: `${item.fullMonthLabel} Market benchmark`,
                           value: formatCompactCurrency(item.marketPrice),
                         })
                       }
@@ -886,7 +1124,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.medianY,
-                          label: `${item.fullMonthLabel} Median Spend MP`,
+                          label: `${item.fullMonthLabel} Typical MP spending`,
                           value: formatCompactCurrency(item.medianSpendMp),
                         })
                       }
@@ -895,7 +1133,7 @@ function CategoryDetail() {
                         setActiveChartPoint({
                           x: item.x,
                           y: item.medianY,
-                          label: `${item.fullMonthLabel} Median Spend MP`,
+                          label: `${item.fullMonthLabel} Typical MP spending`,
                           value: formatCompactCurrency(item.medianSpendMp),
                         })
                       }
@@ -922,22 +1160,107 @@ function CategoryDetail() {
               </svg>
 
             <div className="chart-legend">
-              <span><i className="legend red" />Allowance Cap</span>
-              <span><i className="legend yellow" />Benchmark Value</span>
-              <span><i className="legend grey" />Median Spend MP</span>
+              <span><i className="legend red" />Allowance given</span>
+              <span><i className="legend yellow" />Market benchmark</span>
+              <span><i className="legend grey dashed" />Typical MP spending</span>
             </div>
+            <p className="chart-legend-note">
+              Dashed line = typical spending (median), not allowance.
+            </p>
           </section>
+
+          {isBudgetInfoOpen ? (
+            <div className="benchmark-info-backdrop" onClick={() => setIsBudgetInfoOpen(false)}>
+              <div
+                className="benchmark-info-modal rank-info-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Budget vs benchmark details"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="benchmark-info-close"
+                  onClick={() => setIsBudgetInfoOpen(false)}
+                  aria-label="Close budget vs benchmark details"
+                >
+                  ×
+                </button>
+                <h3>Budget vs Benchmark Details</h3>
+                <p className="benchmark-info-formula">
+                  Period: {budgetChartYearLabel} | Rank: {selectedRank} MPs | Category:{" "}
+                  {category?.category_name || "This category"}
+                </p>
+                <div className="rank-info-grid">
+                  <div className="rank-info-card">
+                    <div className="rank-info-card-head">
+                      <strong>What to check</strong>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Gap to watch</span>
+                      <p className="rank-info-copy">
+                        Compare <strong>allowance</strong> and <strong>typical spending</strong> with
+                        the benchmark line.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>If dashed stays above benchmark</span>
+                      <p className="rank-info-copy">
+                        <strong>Typical MP spending</strong> was above benchmark that month.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>If red stays above benchmark</span>
+                      <p className="rank-info-copy">
+                        The <strong>allowance cap</strong> itself was set above benchmark.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rank-info-card">
+                    <div className="rank-info-card-head">
+                      <strong>Transparency notes</strong>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>This chart shows</span>
+                      <p className="rank-info-copy">
+                        A <strong>monthly trend for the selected rank</strong>, not one MP.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>It does not show</span>
+                      <p className="rank-info-copy">
+                        <strong>Individual MP values</strong> or outliers on its own.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Read carefully</span>
+                      <p className="rank-info-copy">
+                        <strong>Allowance</strong> can sit above benchmark even when{" "}
+                        <strong>typical spending</strong> is lower, and vice versa.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <section className="dark-panel">
             <div className="dark-panel-header">
-              <h2>Average Variance by MP Rank</h2>
+              <div className="dark-panel-title-wrap">
+                <h2>Average Spending Difference vs Benchmark</h2>
+                <p className="dark-panel-helper">
+                  Shows average actual spending vs benchmark for each MP rank in{" "}
+                  {selectedVariancePeriodLabel}.
+                </p>
+              </div>
               <div
                 className={`dark-period-wrap ${isVarianceMenuOpen ? "open" : ""}`}
                 ref={varianceMenuRef}
               >
                 <button
                   type="button"
-                  className="dark-period-pill dark-period-trigger"
+                  className="dark-period-pill dark-period-trigger dark-period-trigger-compact"
                   aria-haspopup="listbox"
                   aria-expanded={isVarianceMenuOpen}
                   onClick={() => setIsVarianceMenuOpen((current) => !current)}
@@ -969,6 +1292,14 @@ function CategoryDetail() {
                   </div>
                 ) : null}
               </div>
+              <button
+                type="button"
+                className="rank-chart-info-button"
+                onClick={() => setIsRankInfoOpen(true)}
+                aria-label="Open spending difference details"
+              >
+                <CircleHelp size={15} />
+              </button>
             </div>
 
             <svg viewBox="0 0 308 182" className="rank-variance-chart" aria-label="Average variance by MP rank">
@@ -1027,11 +1358,35 @@ function CategoryDetail() {
                 textAnchor="middle"
                 className="rank-chart-axis-title"
               >
-                Variance (%)
+                Spending difference vs benchmark (%)
               </text>
 
               {rankChartData.bars.map((item) => (
-                <g key={item.rank}>
+                <g
+                  key={item.rank}
+                  className="rank-chart-interactive"
+                  onClick={() =>
+                    setActiveRankBarPoint((current) =>
+                      current?.rank === item.rank
+                        ? null
+                        : {
+                            rank: item.rank,
+                            x: item.centerX,
+                            y: item.direction === "positive" ? item.fillY : item.markerY,
+                            variance: item.variance,
+                            varianceAmount: item.varianceAmount,
+                          }
+                    )
+                  }
+                >
+                  <rect
+                    x={item.x - 8}
+                    y={rankChartData.chart.top}
+                    width={item.width + 16}
+                    height={rankChartData.chart.height}
+                    rx="20"
+                    className="rank-chart-hitbox"
+                  />
                   <rect
                     x={item.x}
                     y={item.shellY}
@@ -1076,23 +1431,95 @@ function CategoryDetail() {
                   </text>
                 </g>
               ))}
-            </svg>
 
-            <div className="rank-chart-summary" aria-label="Average variance values by MP rank">
-              {rankChartData.bars.map((item) => (
-                <div key={`summary-${item.rank}`} className="rank-chart-summary-item">
-                  <i className={`rank-chart-chip rank-${item.rank.toLowerCase()}`} />
-                  <span className="rank-chart-summary-label">{item.rank} MPs</span>
-                  <strong
-                    className={`rank-chart-summary-value ${item.variance < 0 ? "negative" : "positive"}`}
-                  >
-                    {item.variance > 0 ? "+" : ""}
-                    {Number(item.variance.toFixed(1))}%
-                  </strong>
-                </div>
-              ))}
-            </div>
+              {activeRankBarPoint ? (
+                <g
+                  className="rank-chart-tooltip"
+                  transform={`translate(${Math.min(Math.max(activeRankBarPoint.x - 47, 56), 196)}, ${Math.max(
+                    activeRankBarPoint.y - 48,
+                    10
+                  )})`}
+                >
+                  <rect width="94" height="34" rx="8" />
+                  <text x="8" y="11" className="rank-chart-tooltip-label">
+                    {activeRankBarPoint.rank} MPs
+                  </text>
+                  <text x="8" y="21" className="rank-chart-tooltip-value">
+                    {activeRankBarPoint.variance > 0 ? "+" : ""}
+                    {Number(activeRankBarPoint.variance.toFixed(1))}%
+                  </text>
+                  <text x="8" y="29" className="rank-chart-tooltip-detail">
+                    {activeRankBarPoint.varianceAmount > 0 ? "+" : activeRankBarPoint.varianceAmount < 0 ? "-" : ""}
+                    {formatCompactCurrency(Math.abs(activeRankBarPoint.varianceAmount))}
+                  </text>
+                </g>
+              ) : null}
+            </svg>
           </section>
+
+          {isRankInfoOpen ? (
+            <div className="benchmark-info-backdrop" onClick={() => setIsRankInfoOpen(false)}>
+              <div
+                className="benchmark-info-modal rank-info-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Spending difference details"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="benchmark-info-close"
+                  onClick={() => setIsRankInfoOpen(false)}
+                  aria-label="Close spending difference details"
+                >
+                  ×
+                </button>
+                <h3>Spending Difference Details</h3>
+                <p className="benchmark-info-formula">
+                  Uses actual spending, not allowance caps. Above 0% = above benchmark. Below 0%
+                  = below benchmark. An average above 0% does not mean every MP spent above
+                  benchmark.
+                </p>
+                <p className="benchmark-info-scope">
+                  Period: {selectedVariancePeriodLabel}
+                </p>
+                <div className="rank-info-grid">
+                  {rankBreakdown.map((item) => (
+                    <div key={`rank-detail-${item.rank}`} className="rank-info-card">
+                      <div className="rank-info-card-head">
+                        <strong>{item.rank} MPs</strong>
+                        <span>{item.total} total</span>
+                      </div>
+                      <div className="rank-info-kv">
+                        <span>Above benchmark</span>
+                        <strong>{item.aboveCount}</strong>
+                      </div>
+                      <div className="rank-info-kv">
+                        <span>Near benchmark</span>
+                        <strong>{item.nearCount}</strong>
+                      </div>
+                      <div className="rank-info-kv">
+                        <span>Below benchmark</span>
+                        <strong>{item.belowCount}</strong>
+                      </div>
+                      <div className="rank-info-kv">
+                        <span>Median</span>
+                        <strong>{item.median >= 0 ? "+" : ""}{Number(item.median.toFixed(1))}%</strong>
+                      </div>
+                      <div className="rank-info-kv">
+                        <span>Range</span>
+                        <strong>
+                          {item.minVariance >= 0 ? "+" : ""}
+                          {Number(item.minVariance.toFixed(1))}% to {item.maxVariance >= 0 ? "+" : ""}
+                          {Number(item.maxVariance.toFixed(1))}%
+                        </strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
             <section className="category-top-spenders">
               <div className="top-spenders-header">
@@ -1102,68 +1529,249 @@ function CategoryDetail() {
                     {category?.category_name || "This Category"}
                   </h2>
                 </div>
-                <div
-                  className={`profile-period-wrap ${isTopSpendersMenuOpen ? "open" : ""}`}
-                ref={topSpendersMenuRef}
+                <div className="top-spenders-actions">
+                  <div
+                    className={`profile-period-wrap ${isTopSpendersMenuOpen ? "open" : ""}`}
+                    ref={topSpendersMenuRef}
+                  >
+                    <button
+                      type="button"
+                      className="profile-period-pill profile-period-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded={isTopSpendersMenuOpen}
+                      onClick={() => setIsTopSpendersMenuOpen((current) => !current)}
+                    >
+                      {periods.find((period) => String(period.period_id) === String(selectedTopSpendersPeriod))?.label ||
+                        "Latest"}
+                      <ChevronDown size={12} />
+                    </button>
+                    {isTopSpendersMenuOpen ? (
+                      <div className="profile-period-menu" role="listbox">
+                        {periods.map((period) => (
+                          <button
+                            key={period.period_id}
+                            type="button"
+                            className={`profile-period-option ${
+                              String(period.period_id) === String(selectedTopSpendersPeriod) ? "active" : ""
+                            }`}
+                            role="option"
+                            aria-selected={String(period.period_id) === String(selectedTopSpendersPeriod)}
+                            onClick={() => {
+                              setSelectedTopSpendersPeriod(String(period.period_id));
+                              setIsTopSpendersMenuOpen(false);
+                            }}
+                          >
+                            {period.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="top-spenders-info-button"
+                    onClick={() => setIsTopSpendersInfoOpen(true)}
+                    aria-label="Open top spenders explanation"
+                  >
+                    <CircleHelp size={15} />
+                  </button>
+                </div>
+              </div>
+            <div className="category-table-list" aria-label="Top spenders list">
+              {topSpenders.map((item, index) => (
+                <Link
+                  key={item.allowance_record_id}
+                  to={`/mps/${item.mp_id}`}
+                  className="category-table-link"
+                  aria-label={`View ${item.display_name || item.mp_name}`}
+                >
+                <article className="category-table-row">
+                  <div className="category-table-rank">{index + 1}.</div>
+                  <div className="category-table-main">
+                    <div className="category-table-top">
+                      <div className="category-table-title">
+                        <div className="category-table-name-row">
+                          <h3 className="category-table-name">{item.display_name || item.mp_name}</h3>
+                          <span className="category-table-rank-badge">{item.mp_rank || "-"} MP</span>
+                        </div>
+                      </div>
+                      <span
+                        className={`category-variance-pill ${
+                          item.variance_percent > 5
+                            ? "above"
+                            : item.variance_percent < -5
+                              ? "below"
+                              : "near"
+                        }`}
+                      >
+                        {item.variance_percent > 0 ? "+" : ""}
+                        {Math.round(item.variance_percent)}%
+                      </span>
+                    </div>
+                    <div className="category-table-meta">
+                      <div className="category-table-meta-item">
+                        <span>Party</span>
+                        <strong className="top-spenders-party-cell">
+                          {mpMap.get(item.mp_id)?.party_logo ? (
+                            <img
+                              src={mpMap.get(item.mp_id)?.party_logo}
+                              alt={`${mpMap.get(item.mp_id)?.party_abbreviation || "Party"} logo`}
+                              className="top-spenders-party-logo"
+                            />
+                          ) : (
+                            <span className="top-spenders-party-text">
+                              {mpMap.get(item.mp_id)?.party_abbreviation || "-"}
+                            </span>
+                          )}
+                        </strong>
+                      </div>
+                      <div className="category-table-meta-item">
+                        <span>Monthly Spend</span>
+                        <strong>{formatCompactCurrency(item.actual_spend)}</strong>
+                      </div>
+                      <div className="category-table-meta-item">
+                        <span>Gap</span>
+                        <strong className="category-gap-text">
+                          {Number(item.variance_amount || 0) > 0 ? "+" : Number(item.variance_amount || 0) < 0 ? "-" : ""}
+                          {formatCompactCurrency(Math.abs(Number(item.variance_amount || 0)))}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {isTopSpendersInfoOpen ? (
+            <div className="benchmark-info-backdrop" onClick={() => setIsTopSpendersInfoOpen(false)}>
+              <div
+                className="benchmark-info-modal top-spenders-info-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Top spenders explanation"
+                onClick={(event) => event.stopPropagation()}
               >
                 <button
                   type="button"
-                  className="profile-period-pill profile-period-trigger"
-                  aria-haspopup="listbox"
-                  aria-expanded={isTopSpendersMenuOpen}
-                  onClick={() => setIsTopSpendersMenuOpen((current) => !current)}
+                  className="benchmark-info-close"
+                  onClick={() => setIsTopSpendersInfoOpen(false)}
+                  aria-label="Close top spenders explanation"
                 >
-                  {periods.find((period) => String(period.period_id) === String(selectedTopSpendersPeriod))?.label ||
-                    "Latest"}
-                  <ChevronDown size={12} />
+                  ×
                 </button>
-                {isTopSpendersMenuOpen ? (
-                  <div className="profile-period-menu" role="listbox">
-                    {periods.map((period) => (
-                      <button
-                        key={period.period_id}
-                        type="button"
-                        className={`profile-period-option ${
-                          String(period.period_id) === String(selectedTopSpendersPeriod) ? "active" : ""
-                        }`}
-                        role="option"
-                        aria-selected={String(period.period_id) === String(selectedTopSpendersPeriod)}
-                        onClick={() => {
-                          setSelectedTopSpendersPeriod(String(period.period_id));
-                          setIsTopSpendersMenuOpen(false);
-                        }}
-                      >
-                        {period.label}
-                      </button>
-                    ))}
+                <h3>About This Table</h3>
+                <p className="benchmark-info-formula">
+                  Period:{" "}
+                  {periods.find((period) => String(period.period_id) === String(selectedTopSpendersPeriod))?.label ||
+                    "Selected month"}
+                </p>
+                <div className="rank-info-grid top-spenders-info-grid">
+                  <div className="rank-info-card">
+                    <div className="rank-info-card-head">
+                      <strong>Quick guide</strong>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Table</span>
+                      <p className="rank-info-copy">
+                        Top 5 MPs by <strong>reported spending</strong> in{" "}
+                        {category?.category_name || "this category"}.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Monthly Spend</span>
+                      <p className="rank-info-copy">
+                        <strong>Actual spending</strong>, not the allowance cap.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Vs benchmark</span>
+                      <p className="rank-info-copy">
+                        <strong>% above or below</strong> the category benchmark.
+                      </p>
+                    </div>
+                    <div className="rank-info-kv rank-info-kv-copy">
+                      <span>Note</span>
+                      <p className="rank-info-copy">
+                        Shows <strong>highest spenders only</strong>, not every MP or a rule break.
+                      </p>
+                    </div>
                   </div>
-                ) : null}
+                </div>
               </div>
             </div>
-
-            <div className="category-table-head">
-              <span>#</span>
-              <span>MP</span>
-              <span>Party</span>
-              <span>Monthly Spend</span>
-              <span>Variance</span>
-            </div>
-
-            {topSpenders.map((item, index) => (
-              <div className="category-table-row" key={item.allowance_record_id}>
-                <span>{index + 1}</span>
-                <span>{item.display_name || item.mp_name}</span>
-                <span>{mpMap.get(item.mp_id)?.party_abbreviation || "-"}</span>
-                <span>{formatCompactCurrency(item.actual_spend)}</span>
-                <span className="category-variance-text">
-                  {item.variance_percent > 0 ? "+" : ""}
-                  {Math.round(item.variance_percent)}%
-                </span>
-              </div>
-            ))}
-          </section>
+          ) : null}
         </div>
       )}
+
+      {isBenchmarkInfoOpen ? (
+        <div className="benchmark-info-backdrop" onClick={() => setIsBenchmarkInfoOpen(false)}>
+          <div
+            className="benchmark-info-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Benchmark details"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="benchmark-info-close"
+              onClick={() => setIsBenchmarkInfoOpen(false)}
+              aria-label="Close benchmark details"
+            >
+              ×
+            </button>
+            <h3>Benchmark Details</h3>
+            <p className="benchmark-info-formula">
+              Formula: (Allowance - Benchmark) / Benchmark
+            </p>
+            <div className="benchmark-info-grid">
+              <div>
+                <span>Allowance</span>
+                <strong>{formatCompactCurrency(headlineAllowance)}</strong>
+              </div>
+              <div>
+                <span>Benchmark</span>
+                <strong>{formatCompactCurrency(currentBenchmark)}</strong>
+              </div>
+              <div>
+                <span>Gap</span>
+                <strong>{formatCompactCurrency(Math.abs(benchmarkGapAmount))}</strong>
+              </div>
+              <div>
+                <span>Result</span>
+                <strong>
+                  {headlineVariance >= 0 ? "+" : ""}
+                  {Math.round(headlineVariance)}%
+                </strong>
+              </div>
+            </div>
+            <p className="benchmark-info-scope">
+              Scope: {category?.category_name || "Category"} • {selectedPeriodLabel} •{" "}
+              {selectedRank} MP
+            </p>
+            <p className="benchmark-info-trend">
+              Benchmark vs previous month:{" "}
+              {benchmarkMoMPercent === null
+                ? "Not available"
+                : `${benchmarkMoMPercent >= 0 ? "+" : ""}${Math.round(
+                    benchmarkMoMPercent
+                  )}%`}
+            </p>
+            <button
+              type="button"
+              className="benchmark-info-about"
+              onClick={() => {
+                setIsBenchmarkInfoOpen(false);
+                navigate("/about");
+              }}
+            >
+              Source & method: See About page
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
