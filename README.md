@@ -33,7 +33,19 @@ docs/     supporting notes/documentation
 
 ## Local setup
 
-### 1. Create environment files
+### 1. Install dependencies
+
+In the project root, install dependencies for both apps:
+
+```powershell
+cd server
+npm.cmd install
+
+cd ../client
+npm.cmd install
+```
+
+### 2. Create environment files
 
 Create local env files from the examples:
 
@@ -60,10 +72,10 @@ VITE_API_PROXY_TARGET=http://localhost:5000
 VITE_API_BASE_URL=
 ```
 
-### 2. Prepare MySQL
+### 3. Prepare MySQL
 
 - Create a local MySQL database named `examineid`
-- Import the schema/data needed for the project
+- Import the project schema/data from the SQL file(s) included in the repository
 - Use the local database credentials in `server/.env`
 
 ## Running the project locally
