@@ -239,7 +239,7 @@ a,
 
 .hero-title {
   margin: 0;
-  font-size: 25px;
+  font-size: clamp(25px, 6vw, 2.6rem);
   line-height: 1.02;
   text-align: center;
   font-weight: 700;
@@ -253,7 +253,7 @@ a,
 .hero-text {
   margin: 12px auto 16px;
   max-width: 278px;
-  font-size: 9.4px;
+  font-size: clamp(11px, 2.6vw, 9.6px);
   line-height: 1.5;
   text-align: center;
   color: #303030;
@@ -5971,13 +5971,11 @@ a,
   }
 
   .hero-title {
-    font-size: clamp(2.25rem, 8vw, 2.6rem);
     letter-spacing: -1.2px;
   }
 
   .hero-text {
     max-width: 290px;
-    font-size: 9.6px;
   }
 
   .bottom-nav {
