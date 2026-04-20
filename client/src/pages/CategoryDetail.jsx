@@ -841,102 +841,6 @@ function CategoryDetail() {
               </button>
             </section>
 
-            <section className="category-feedback-panel">
-              <div className="profile-feedback-title">
-                <CircleHelp size={25} />
-                <span>
-                  How appropriate is this {category?.category_name?.toLowerCase()} allowance for{" "}
-                  {selectedRank} MPs?
-                </span>
-              </div>
-
-              <div className="category-feedback-buttons">
-                <button
-                  type="button"
-                  className={`feedback-choice negative ${hasSubmittedFeedback ? "submitted" : ""}`}
-                  onClick={() => submitFeedback("far_too_high")}
-                  disabled={submittingFeedback || hasSubmittedFeedback}
-                >
-                  <span className="feedback-choice-icon far-high" aria-hidden="true">
-                    <i className="feedback-choice-bar dark" />
-                    <i className="feedback-choice-bar accent" />
-                  </span>
-                  Far too high
-                </button>
-                <button
-                  type="button"
-                  className={`feedback-choice warning ${hasSubmittedFeedback ? "submitted" : ""}`}
-                  onClick={() => submitFeedback("slightly_high")}
-                  disabled={submittingFeedback || hasSubmittedFeedback}
-                >
-                  <span className="feedback-choice-icon slightly-high" aria-hidden="true">
-                    <i className="feedback-choice-bar dark" />
-                    <i className="feedback-choice-bar accent" />
-                  </span>
-                  Slightly high
-                </button>
-                <button
-                  type="button"
-                  className={`feedback-choice positive ${hasSubmittedFeedback ? "submitted" : ""}`}
-                  onClick={() => submitFeedback("about_right")}
-                  disabled={submittingFeedback || hasSubmittedFeedback}
-                >
-                  <span className="feedback-choice-icon about-right" aria-hidden="true">
-                    <i className="feedback-choice-bar dark" />
-                    <i className="feedback-choice-bar accent" />
-                  </span>
-                  About right
-                </button>
-                <button
-                  type="button"
-                  className={`feedback-choice low ${hasSubmittedFeedback ? "submitted" : ""}`}
-                  onClick={() => submitFeedback("too_low")}
-                  disabled={submittingFeedback || hasSubmittedFeedback}
-                >
-                  <span className="feedback-choice-icon too-low" aria-hidden="true">
-                    <i className="feedback-choice-bar dark" />
-                    <i className="feedback-choice-bar accent" />
-                  </span>
-                  Too low
-                </button>
-              </div>
-
-              <p className="feedback-anonymous-note">
-                One anonymous vote per browser, per period, per rank tab.
-              </p>
-
-              {(submittingFeedback || hasSubmittedFeedback) && (
-                <>
-                  <div className="profile-feedback-status">
-                    <span>{submittingFeedback ? "Saving feedback..." : feedbackMessage}</span>
-                    {!submittingFeedback && hasSubmittedFeedback && <CheckCircle2 size={18} />}
-                  </div>
-
-                  {hasSubmittedFeedback && (
-                    <button
-                      type="button"
-                      className="summary-button"
-                      onClick={() =>
-                        navigate(
-                          `/feedback?period=${encodeURIComponent(
-                            selectedPeriod
-                          )}&focus=category&category_id=${encodeURIComponent(
-                            id || ""
-                          )}&category_name=${encodeURIComponent(
-                            category?.category_name || ""
-                          )}`
-                        )
-                      }
-                    >
-                      <span>View public feedback summary</span>
-                      <span className="summary-button-icon" aria-hidden="true">
-                        <ChevronRight size={12} />
-                      </span>
-                    </button>
-                  )}
-                </>
-              )}
-            </section>
           </>
         )}
       </div>
@@ -1520,6 +1424,103 @@ function CategoryDetail() {
               </div>
             </div>
           ) : null}
+
+          <section className="category-feedback-panel">
+            <div className="profile-feedback-title">
+              <CircleHelp size={25} />
+              <span>
+                How appropriate is this {category?.category_name?.toLowerCase()} allowance for{" "}
+                {selectedRank} MPs?
+              </span>
+            </div>
+
+            <div className="category-feedback-buttons">
+              <button
+                type="button"
+                className={`feedback-choice negative ${hasSubmittedFeedback ? "submitted" : ""}`}
+                onClick={() => submitFeedback("far_too_high")}
+                disabled={submittingFeedback || hasSubmittedFeedback}
+              >
+                <span className="feedback-choice-icon far-high" aria-hidden="true">
+                  <i className="feedback-choice-bar dark" />
+                  <i className="feedback-choice-bar accent" />
+                </span>
+                Far too high
+              </button>
+              <button
+                type="button"
+                className={`feedback-choice warning ${hasSubmittedFeedback ? "submitted" : ""}`}
+                onClick={() => submitFeedback("slightly_high")}
+                disabled={submittingFeedback || hasSubmittedFeedback}
+              >
+                <span className="feedback-choice-icon slightly-high" aria-hidden="true">
+                  <i className="feedback-choice-bar dark" />
+                  <i className="feedback-choice-bar accent" />
+                </span>
+                Slightly high
+              </button>
+              <button
+                type="button"
+                className={`feedback-choice positive ${hasSubmittedFeedback ? "submitted" : ""}`}
+                onClick={() => submitFeedback("about_right")}
+                disabled={submittingFeedback || hasSubmittedFeedback}
+              >
+                <span className="feedback-choice-icon about-right" aria-hidden="true">
+                  <i className="feedback-choice-bar dark" />
+                  <i className="feedback-choice-bar accent" />
+                </span>
+                About right
+              </button>
+              <button
+                type="button"
+                className={`feedback-choice low ${hasSubmittedFeedback ? "submitted" : ""}`}
+                onClick={() => submitFeedback("too_low")}
+                disabled={submittingFeedback || hasSubmittedFeedback}
+              >
+                <span className="feedback-choice-icon too-low" aria-hidden="true">
+                  <i className="feedback-choice-bar dark" />
+                  <i className="feedback-choice-bar accent" />
+                </span>
+                Too low
+              </button>
+            </div>
+
+            <p className="feedback-anonymous-note">
+              One anonymous vote per browser, per period, per rank tab.
+            </p>
+
+            {(submittingFeedback || hasSubmittedFeedback) && (
+              <>
+                <div className="profile-feedback-status">
+                  <span>{submittingFeedback ? "Saving feedback..." : feedbackMessage}</span>
+                  {!submittingFeedback && hasSubmittedFeedback && <CheckCircle2 size={18} />}
+                </div>
+
+                {hasSubmittedFeedback && (
+                  <button
+                    type="button"
+                    className="summary-button"
+                    onClick={() =>
+                      navigate(
+                        `/feedback?period=${encodeURIComponent(
+                          selectedPeriod
+                        )}&focus=category&category_id=${encodeURIComponent(
+                          id || ""
+                        )}&category_name=${encodeURIComponent(
+                          category?.category_name || ""
+                        )}`
+                      )
+                    }
+                  >
+                    <span>View public feedback summary</span>
+                    <span className="summary-button-icon" aria-hidden="true">
+                      <ChevronRight size={12} />
+                    </span>
+                  </button>
+                )}
+              </>
+            )}
+          </section>
 
             <section className="category-top-spenders">
               <div className="top-spenders-header">

@@ -534,8 +534,8 @@ function Allowances() {
             type="text"
             placeholder={
               viewMode === "category"
-                ? "search by category name..."
-                : "search MP name or party..."
+                ? "Search categories..."
+                : "Search MPs or parties..."
             }
             value={searchTerm}
             onChange={(event) => {

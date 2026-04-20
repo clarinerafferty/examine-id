@@ -10,11 +10,11 @@
 
 ## Data notice
 
-The dataset in this repository is prototype/demo data for development and presentation purposes.
+The dataset in this repository is a seeded development dataset for the current release.
 
 - It should not be treated as fully verified parliamentary data.
-- Some benchmark figures are placeholders or proxy values.
-- Any future public deployment should clearly label the dataset as prototype data unless it has been formally validated.
+- Some benchmark figures are seeded reference estimates.
+- Any public deployment should continue to distinguish seeded records from formally validated records until the full dataset has been verified.
 
 ## Tech stack
 

@@ -337,7 +337,7 @@ function Feedback() {
       return [
         {
           tone: "yellow",
-          text: `Early signal only: category results for ${selectedPeriodLabel} are based on limited responses so far.`,
+          text: `Limited response volume: category results for ${selectedPeriodLabel} are based on a smaller set of responses so far.`,
         },
       ];
     }
@@ -452,10 +452,10 @@ function Feedback() {
                 <Info size={14} />
                 <span>ABOUT THIS PAGE</span>
               </div>
-              <h2>How Citizens Feel About MP Allowances</h2>
+              <h2>Public Sentiment on MP Allowances</h2>
               <p>
-                These charts summarise anonymous responses from the category and MP
-                profile pages. They are indicative of public sentiment, not official polling.
+                These charts summarise anonymous responses submitted from the category and MP
+                profile pages. They reflect in-app sentiment signals, not official polling.
               </p>
             </section>
 
@@ -505,20 +505,20 @@ function Feedback() {
 
             {focusType && selectedPeriodLabel ? (
               <div className="feedback-period-hint">
-                Showing <strong>{selectedPeriodLabel}</strong> results for your recorded vote.
+                Showing <strong>{selectedPeriodLabel}</strong> results including your latest response.
               </div>
             ) : null}
 
             {focusType === "category" && highlightedCategoryName ? (
               <div className="feedback-focus-banner category">
-                Latest recorded vote included in <strong>{highlightedCategoryName}</strong> for{" "}
+                Your latest response is included in <strong>{highlightedCategoryName}</strong> for{" "}
                 <strong>{selectedPeriodLabel}</strong>.
               </div>
             ) : null}
 
             {focusType === "mp" && highlightedMpName ? (
               <div className="feedback-focus-banner mp">
-                Latest recorded vote from <strong>{highlightedMpName}</strong> is now included in
+                Your latest response for <strong>{highlightedMpName}</strong> is now included in
                 the summary for <strong>{selectedPeriodLabel}</strong>.
               </div>
             ) : null}
@@ -566,7 +566,7 @@ function Feedback() {
               <div className="feedback-search">
                 <input
                   type="text"
-                  placeholder="search category (eg. Housing, Travel)"
+                  placeholder="Search categories, e.g. Housing or Travel"
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                 />
@@ -740,7 +740,7 @@ function Feedback() {
               </p>
               {rankSentimentHasLimitedData ? (
                 <div className="feedback-low-data-note">
-                  Early signal only: MP-rank sentiment for {selectedPeriodLabel} is still based on a small number of votes.
+                  Limited response volume: MP-rank sentiment for {selectedPeriodLabel} is still based on a small number of votes.
                 </div>
               ) : null}
 

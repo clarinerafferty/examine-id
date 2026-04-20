@@ -87,6 +87,14 @@ function calculatePercentChange(currentValue, previousValue) {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const DIVERGENCE_AXIS_MIN = -30;
 const DIVERGENCE_AXIS_MAX = 50;
 const DIVERGENCE_AXIS_RANGE = DIVERGENCE_AXIS_MAX - DIVERGENCE_AXIS_MIN;
@@ -124,6 +132,7 @@ function Dashboard() {
   const [allowances, setAllowances] = useState([]);
   const [mps, setMps] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedTopSpendersPeriodId, setSelectedTopSpendersPeriodId] = useState("");
   const [isTopSpendersMenuOpen, setIsTopSpendersMenuOpen] = useState(false);
   const [isTopSpendersInfoOpen, setIsTopSpendersInfoOpen] = useState(false);
@@ -133,6 +142,7 @@ function Dashboard() {
   const [activeMetricModal, setActiveMetricModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const searchBarRef = useRef(null);
   const topSpendersMenuRef = useRef(null);
   const topSpendersInfoRef = useRef(null);
   const divergenceInfoRef = useRef(null);
@@ -242,6 +252,10 @@ function Dashboard() {
 
   useEffect(() => {
     function handlePointerDown(event) {
+      if (!searchBarRef.current?.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
+
       if (!topSpendersMenuRef.current?.contains(event.target)) {
         setIsTopSpendersMenuOpen(false);
       }
@@ -257,6 +271,7 @@ function Dashboard() {
 
     function handleEscape(event) {
       if (event.key === "Escape") {
+        setIsSearchOpen(false);
         setIsDivergenceInfoOpen(false);
         setIsTopSpendersInfoOpen(false);
       }
@@ -627,38 +642,108 @@ function Dashboard() {
   const selectedTopSpendersPeriodLabel =
     periodsDescending.find((period) => Number(period.period_id) === Number(selectedTopSpendersPeriodId))
       ?.label || latestPeriodLabel;
+  const normalizedSearchTerm = useMemo(() => normalizeSearchValue(searchTerm), [searchTerm]);
+
+  const searchableCategories = useMemo(() => {
+    const grouped = new Map();
+
+    allowances.forEach((record) => {
+      if (!grouped.has(record.category_id)) {
+        grouped.set(record.category_id, {
+          category_id: record.category_id,
+          category_name: record.category_name,
+          searchText: normalizeSearchValue(record.category_name),
+        });
+      }
+    });
+
+    return Array.from(grouped.values());
+  }, [allowances]);
+
+  const mpSuggestions = useMemo(() => {
+    if (!normalizedSearchTerm) {
+      return [];
+    }
+
+    return mps
+      .map((item) => ({
+        ...item,
+        searchText: normalizeSearchValue(
+          `${item.display_name || ""} ${item.full_name || ""} ${item.party_name || ""} ${
+            item.party_abbreviation || ""
+          }`
+        ),
+      }))
+      .filter((item) => item.searchText.includes(normalizedSearchTerm))
+      .sort((a, b) => {
+        const aDisplay = normalizeSearchValue(a.display_name || a.full_name);
+        const bDisplay = normalizeSearchValue(b.display_name || b.full_name);
+        const aStarts = aDisplay.startsWith(normalizedSearchTerm) ? 1 : 0;
+        const bStarts = bDisplay.startsWith(normalizedSearchTerm) ? 1 : 0;
+
+        if (aStarts !== bStarts) {
+          return bStarts - aStarts;
+        }
+
+        return aDisplay.localeCompare(bDisplay);
+      })
+      .slice(0, 4);
+  }, [mps, normalizedSearchTerm]);
+
+  const categorySuggestions = useMemo(() => {
+    if (!normalizedSearchTerm) {
+      return [];
+    }
+
+    return searchableCategories
+      .filter((item) => item.searchText.includes(normalizedSearchTerm))
+      .sort((a, b) => {
+        const aStarts = a.searchText.startsWith(normalizedSearchTerm) ? 1 : 0;
+        const bStarts = b.searchText.startsWith(normalizedSearchTerm) ? 1 : 0;
+
+        if (aStarts !== bStarts) {
+          return bStarts - aStarts;
+        }
+
+        return a.category_name.localeCompare(b.category_name);
+      })
+      .slice(0, 4);
+  }, [normalizedSearchTerm, searchableCategories]);
+
+  const hasSearchSuggestions = mpSuggestions.length > 0 || categorySuggestions.length > 0;
+
+  function handleSearchSelect(option) {
+    setSearchTerm(option.label);
+    setIsSearchOpen(false);
+
+    if (option.type === "mp") {
+      navigate(
+        `/mps/${option.id}${latestPeriodId ? `?period=${encodeURIComponent(latestPeriodId)}` : ""}`
+      );
+      return;
+    }
+
+    navigate(`/categories/${option.id}`);
+  }
 
   function handleSearchSubmit(event) {
     event.preventDefault();
 
-    const term = searchTerm.trim().toLowerCase();
+    const rawTerm = searchTerm.trim();
+    const term = normalizedSearchTerm;
 
     if (!term) {
       navigate("/allowances");
       return;
     }
+    setIsSearchOpen(false);
 
-    const matchingMp = mps.find((item) =>
-      `${item.display_name || ""} ${item.full_name || ""} ${item.party_name || ""}`
-        .toLowerCase()
-        .includes(term)
-    );
-
-    if (matchingMp) {
-      navigate(`/mps/${matchingMp.mp_id}`);
+    if (mpSuggestions.length > 0 && categorySuggestions.length === 0) {
+      navigate(`/allowances?view=member&search=${encodeURIComponent(rawTerm)}`);
       return;
     }
 
-    const matchingCategory = latestPeriodRecords.find((item) =>
-      item.category_name.toLowerCase().includes(term)
-    );
-
-    if (matchingCategory) {
-      navigate(`/categories/${matchingCategory.category_id}`);
-      return;
-    }
-
-    navigate(`/allowances?view=category&search=${encodeURIComponent(searchTerm.trim())}`);
+    navigate(`/allowances?view=category&search=${encodeURIComponent(rawTerm)}`);
   }
 
   return (
@@ -683,16 +768,91 @@ function Dashboard() {
             as legal or audit conclusions.
           </p>
 
-          <form className="search-bar" onSubmit={handleSearchSubmit}>
+          <form className="search-bar" onSubmit={handleSearchSubmit} ref={searchBarRef}>
             <input
               type="text"
-              placeholder="Search MPs or categories..."
+              placeholder="Search MPs or allowance categories..."
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setIsSearchOpen(true);
+              }}
+              aria-label="Search MPs or allowance categories"
+              aria-expanded={isSearchOpen && Boolean(normalizedSearchTerm)}
+              aria-controls="dashboard-search-suggestions"
+              aria-autocomplete="list"
             />
-            <button type="submit" aria-label="Search">
+            <button type="submit" aria-label="Search" className="search-submit-button">
               <Search size={16} />
             </button>
+
+            {isSearchOpen && normalizedSearchTerm ? (
+              <div className="search-suggestions" id="dashboard-search-suggestions" role="listbox">
+                {mpSuggestions.length ? (
+                  <div className="search-suggestion-group">
+                    <div className="search-suggestion-heading">MPs</div>
+                    {mpSuggestions.map((item) => (
+                      <button
+                        key={`mp-${item.mp_id}`}
+                        type="button"
+                        className="search-suggestion-item"
+                        onClick={() =>
+                          handleSearchSelect({
+                            type: "mp",
+                            id: item.mp_id,
+                            label: item.display_name || item.full_name,
+                          })
+                        }
+                      >
+                        <span className="search-suggestion-title">
+                          {item.display_name || item.full_name}
+                        </span>
+                        <span className="search-suggestion-meta">
+                          {item.party_abbreviation || item.party_name || "MP"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {categorySuggestions.length ? (
+                  <div className="search-suggestion-group">
+                    <div className="search-suggestion-heading">Categories</div>
+                    {categorySuggestions.map((item) => (
+                      <button
+                        key={`category-${item.category_id}`}
+                        type="button"
+                        className="search-suggestion-item"
+                        onClick={() =>
+                          handleSearchSelect({
+                            type: "category",
+                            id: item.category_id,
+                            label: item.category_name,
+                          })
+                        }
+                      >
+                        <span className="search-suggestion-title">{item.category_name}</span>
+                        <span className="search-suggestion-meta">Allowance category</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {hasSearchSuggestions ? (
+                  <button
+                    type="submit"
+                    className="search-suggestion-footer"
+                  >
+                    View all matching results
+                  </button>
+                ) : (
+                  <div className="search-suggestion-empty">
+                    No direct matches. Press search to browse filtered results.
+                  </div>
+                )}
+              </div>
+            ) : null}
           </form>
 
           <div className="hero-illustration real-illustration">

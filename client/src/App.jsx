@@ -9,7 +9,9 @@ import CategoryDetail from "./pages/CategoryDetail";
 import Categories from "./pages/Categories";
 import Feedback from "./pages/Feedback";
 import About from "./pages/About";
+import MoreDetail from "./pages/MoreDetail";
 import BottomNav from "./components/BottomNav";
+import { getMorePageMeta } from "./pages/moreContent";
 import { fetchJson } from "./lib/api";
 
 function App() {
@@ -17,6 +19,7 @@ function App() {
   const isDashboard = location.pathname === "/";
   const [dynamicHeaderTitle, setDynamicHeaderTitle] = useState("");
   const [pageInfoOpenPath, setPageInfoOpenPath] = useState("");
+  const allowancesViewMode = new URLSearchParams(location.search).get("view");
   const staticHeaderMap = {
     "/allowances": { title: "Allowances", showInfo: true },
     "/feedback": { title: "Feedback" },
@@ -43,11 +46,38 @@ function App() {
       showInfo: true,
     };
   }
+
+  const moreDetailMatch = matchPath("/about/:slug", location.pathname);
+
+  if (!standardHeader && moreDetailMatch) {
+    const morePage = getMorePageMeta(moreDetailMatch.params.slug);
+
+    standardHeader = {
+      title: morePage?.title || "More",
+      backTo: "/about",
+    };
+  }
+
   const isCategoryDetail = Boolean(matchPath("/categories/:id", location.pathname));
   const isMpDetail = Boolean(matchPath("/mps/:id", location.pathname));
 
   const pageInfoContent = useMemo(() => {
     if (location.pathname === "/allowances") {
+      if (allowancesViewMode === "member") {
+        return {
+          title: "About This Page",
+          summary: "Quick guide to reading the MP allowance view.",
+          points: [
+            "This page compares MP allowance data in a simple, scannable way.",
+            "By MP: See each MP's monthly spending and average benchmark difference.",
+            "Monthly spend: Total spending across allowance categories for the selected period.",
+            "Variance: The average percentage difference between an MP's spending and the benchmark values across their categories.",
+            "Positive/Negative: + means above benchmark, - means below benchmark.",
+            "Source & method: See About page.",
+          ],
+        };
+      }
+
       return {
         title: "About This Page",
         summary: "Quick guide to reading the allowance view.",
@@ -91,7 +121,7 @@ function App() {
     }
 
     return null;
-  }, [isCategoryDetail, isMpDetail, location.pathname]);
+  }, [allowancesViewMode, isCategoryDetail, isMpDetail, location.pathname]);
 
   const isPageInfoOpen = pageInfoOpenPath === location.pathname;
 
@@ -185,6 +215,7 @@ function App() {
           <Route path="/categories/:id" element={<CategoryDetail />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/about" element={<About />} />
+          <Route path="/about/:slug" element={<MoreDetail />} />
         </Routes>
       </div>
       {standardHeader?.showInfo && pageInfoContent && isPageInfoOpen ? (
