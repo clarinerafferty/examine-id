@@ -103,8 +103,10 @@ Then open the Vite URL shown in the terminal.
 
 ## What works locally
 
-- dashboard overview
-- MP list and detail pages
-- category list and detail pages
-- allowance and benchmark browsing
-- feedback submission flow
+- Dashboard overview
+- MP list and MP detail pages
+- Category list and category detail pages
+- Allowance and benchmark browsing
+- Public feedback submission flow
+- Feedback summary updates after submission
+- Backend API connection to MySQL seeded dataset
