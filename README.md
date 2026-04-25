@@ -28,7 +28,6 @@ The dataset in this repository is a seeded development dataset for the current r
 ```text
 client/   React frontend
 server/   Express API and MySQL connection
-docs/     supporting notes/documentation
 ```
 
 ## Local setup
@@ -75,8 +74,14 @@ VITE_API_BASE_URL=
 ### 3. Prepare MySQL
 
 - Create a local MySQL database named `examineid`
-- Import the project schema/data from the SQL file(s) included in the repository
+- Import `server/sql/seed.sql` into that database
 - Use the local database credentials in `server/.env`
+
+Example using MySQL CLI:
+
+```powershell
+mysql -u root examineid < server/sql/seed.sql
+```
 
 ## Running the project locally
 
@@ -95,12 +100,6 @@ npm.cmd run dev -- --host
 ```
 
 Then open the Vite URL shown in the terminal.
-
-If you want to test on your phone while on the same Wi-Fi, open:
-
-```text
-http://YOUR-LAPTOP-IP:5173
-```
 
 ## What works locally
 

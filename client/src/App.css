@@ -3759,7 +3759,7 @@ a,
 
 .profile-feedback-status {
   margin-top: 18px;
-  color: #f1f1f1;
+  color: #6b5b52;
   font-size: 10px;
   font-weight: 500;
   text-align: center;
@@ -5509,6 +5509,23 @@ a,
   background: var(--olive);
 }
 
+.segment.far-high {
+  background: #9c372f;
+}
+
+.segment.slightly-high {
+  background: #e7c451;
+  color: #4f421d;
+}
+
+.segment.about-right {
+  background: #7b7741;
+}
+
+.segment.too-low {
+  background: #7d95c8;
+}
+
 .feedback-legend-row {
   display: flex;
   flex-wrap: wrap;
@@ -5540,6 +5557,64 @@ a,
 
 .legend-dot.very {
   background: var(--olive);
+}
+
+.legend-dot.far-high {
+  background: #9c372f;
+}
+
+.legend-dot.slightly-high {
+  background: #e7c451;
+}
+
+.legend-dot.about-right {
+  background: #7b7741;
+}
+
+.legend-dot.too-low {
+  background: #7d95c8;
+}
+
+.feedback-response-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.feedback-response-chip {
+  border: 1px solid #e5dacb;
+  border-radius: 14px;
+  padding: 8px 10px;
+  background: #fcfaf6;
+}
+
+.feedback-response-chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: #4f443a;
+}
+
+.feedback-response-chip-top span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.feedback-response-chip-top strong {
+  font-size: 11px;
+  color: #302925;
+}
+
+.feedback-response-chip small {
+  display: block;
+  margin-top: 4px;
+  color: #8d7667;
+  font-size: 9px;
 }
 
 .feedback-see-detail {
@@ -5617,6 +5692,169 @@ a,
   font-size: 10px;
   text-align: center;
   background: rgba(255, 250, 245, 0.7);
+}
+
+.feedback-mp-highlight-card {
+  border: 1px solid #e2d5c8;
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  background: linear-gradient(180deg, #fffdf8 0%, #f9f3ea 100%);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.feedback-mp-highlight-label {
+  color: #9a7a32;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.feedback-mp-highlight-name {
+  margin-top: 6px;
+  color: #241f1a;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.feedback-mp-highlight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  color: #745d52;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.feedback-mp-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.feedback-mp-card {
+  border: 1px solid #e3d9cc;
+  border-radius: 18px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+
+.feedback-mp-card.expanded {
+  padding-bottom: 14px;
+}
+
+.feedback-mp-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.feedback-mp-rank-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #756f35;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.feedback-mp-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.feedback-mp-name {
+  color: #25201c;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.feedback-mp-meta {
+  margin-top: 4px;
+  color: #7e675d;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.feedback-mp-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  flex-shrink: 0;
+}
+
+.feedback-mp-trend {
+  color: var(--brand-red);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.feedback-mp-toggle {
+  margin-bottom: 0;
+}
+
+.feedback-mp-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ece1d5;
+}
+
+.feedback-mp-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.feedback-mp-detail-item {
+  border: 1px solid #e6dccf;
+  border-radius: 14px;
+  padding: 9px 10px;
+  background: #fcfaf6;
+}
+
+.feedback-mp-detail-item span {
+  display: block;
+  color: #7e675d;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.feedback-mp-detail-item strong {
+  display: block;
+  margin-top: 4px;
+  color: #2d2520;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.feedback-mp-detail-item small {
+  display: block;
+  margin-top: 5px;
+  color: #8d7667;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.feedback-mp-link {
+  display: block;
+  margin-top: 12px;
+  text-align: center;
+  color: var(--brand-red);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .more-screen {

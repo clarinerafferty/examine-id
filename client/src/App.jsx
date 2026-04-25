@@ -126,6 +126,10 @@ function App() {
   const isPageInfoOpen = pageInfoOpenPath === location.pathname;
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
     let isMounted = true;
     const categoryMatch = matchPath("/categories/:id", location.pathname);
 

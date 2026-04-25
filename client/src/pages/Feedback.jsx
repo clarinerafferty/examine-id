@@ -1,4 +1,4 @@
-import {
+﻿import {
   CalendarDays,
   ChevronDown,
   Info,
@@ -17,6 +17,13 @@ const categoryAccentMap = {
   "Digital Communications": "communication",
 };
 const LOW_DATA_THRESHOLD = 5;
+const CATEGORY_RESPONSE_OPTIONS = [
+  { key: "farTooHigh", value: "far_too_high", label: "Far too high", tone: "far-high" },
+  { key: "slightlyHigh", value: "slightly_high", label: "Slightly high", tone: "slightly-high" },
+  { key: "aboutRight", value: "about_right", label: "About right", tone: "about-right" },
+  { key: "tooLow", value: "too_low", label: "Too low", tone: "too-low" },
+];
+const MP_RESPONSE_VALUES = ["not_reasonable", "somewhat_reasonable", "very_reasonable"];
 
 function labelForResponse(value) {
   switch (value) {
@@ -101,6 +108,10 @@ function categoryVoteRankFromType(feedbackType) {
   }
 }
 
+function formatVoteCountLabel(total, label) {
+  return `${total} ${label}${total === 1 ? "" : "s"}`;
+}
+
 function Feedback() {
   const [searchParams] = useSearchParams();
   const [feedback, setFeedback] = useState([]);
@@ -108,15 +119,13 @@ function Feedback() {
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortMode, setSortMode] = useState("concern");
+  const [sortMode, setSortMode] = useState("votes");
   const [selectedCategoryVoteRank, setSelectedCategoryVoteRank] = useState("all");
   const [expandedCategoryIds, setExpandedCategoryIds] = useState([]);
+  const [expandedMpIds, setExpandedMpIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const periodMenuRef = useRef(null);
-  const categorySectionRef = useRef(null);
-  const rankSectionRef = useRef(null);
-  const highlightedCategoryRef = useRef(null);
 
   function toggleCategoryBreakdown(categoryId) {
     setExpandedCategoryIds((current) => {
@@ -125,6 +134,16 @@ function Feedback() {
       }
 
       return [...current, categoryId];
+    });
+  }
+
+  function toggleMpBreakdown(mpId) {
+    setExpandedMpIds((current) => {
+      if (current.includes(mpId)) {
+        return current.filter((id) => id !== mpId);
+      }
+
+      return [...current, mpId];
     });
   }
 
@@ -278,11 +297,32 @@ function Feedback() {
         const existing = grouped.get(key) || {
           category_id: item.category_id,
           category_name: categoryName,
+          farTooHigh: 0,
+          slightlyHigh: 0,
+          aboutRight: 0,
+          tooLow: 0,
           notReasonable: 0,
           somewhat: 0,
           very: 0,
           total: 0,
         };
+
+        switch (String(item.response_value || "").toLowerCase()) {
+          case "far_too_high":
+            existing.farTooHigh += 1;
+            break;
+          case "slightly_high":
+            existing.slightlyHigh += 1;
+            break;
+          case "about_right":
+            existing.aboutRight += 1;
+            break;
+          case "too_low":
+            existing.tooLow += 1;
+            break;
+          default:
+            break;
+        }
 
         const bucket = labelForResponse(item.response_value);
         if (bucket === "not reasonable") {
@@ -298,13 +338,36 @@ function Feedback() {
       });
 
     return Array.from(grouped.values())
-      .map((item) => ({
-        ...item,
-        concernPercent: item.total ? Math.round((item.notReasonable / item.total) * 100) : 0,
-        somewhatPercent: item.total ? Math.round((item.somewhat / item.total) * 100) : 0,
-        veryPercent: item.total ? Math.round((item.very / item.total) * 100) : 0,
-        hasLimitedData: item.total < LOW_DATA_THRESHOLD,
-      }))
+      .map((item) => {
+        const responseBreakdown = CATEGORY_RESPONSE_OPTIONS.map((option) => ({
+          ...option,
+          count: item[option.key],
+          percent: item.total ? Math.round((item[option.key] / item.total) * 100) : 0,
+        }));
+        const topResponse = [...responseBreakdown].sort((a, b) => {
+          if (b.count !== a.count) {
+            return b.count - a.count;
+          }
+
+          return CATEGORY_RESPONSE_OPTIONS.findIndex((option) => option.key === a.key) -
+            CATEGORY_RESPONSE_OPTIONS.findIndex((option) => option.key === b.key);
+        })[0];
+
+        return {
+          ...item,
+          concernPercent: item.total ? Math.round((item.notReasonable / item.total) * 100) : 0,
+          somewhatPercent: item.total ? Math.round((item.somewhat / item.total) * 100) : 0,
+          veryPercent: item.total ? Math.round((item.very / item.total) * 100) : 0,
+          farTooHighPercent: item.total ? Math.round((item.farTooHigh / item.total) * 100) : 0,
+          slightlyHighPercent: item.total ? Math.round((item.slightlyHigh / item.total) * 100) : 0,
+          aboutRightPercent: item.total ? Math.round((item.aboutRight / item.total) * 100) : 0,
+          tooLowPercent: item.total ? Math.round((item.tooLow / item.total) * 100) : 0,
+          responseBreakdown,
+          topResponseLabel: topResponse?.label || "No response",
+          topResponsePercent: topResponse?.percent || 0,
+          hasLimitedData: item.total < LOW_DATA_THRESHOLD,
+        };
+      })
       .filter((item) =>
         item.category_name.toLowerCase().includes(searchTerm.trim().toLowerCase())
       )
@@ -313,11 +376,44 @@ function Feedback() {
           return a.category_name.localeCompare(b.category_name);
         }
 
-        if (sortMode === "reasonable") {
-          return b.veryPercent - a.veryPercent;
+        if (sortMode === "votes") {
+          if (b.total !== a.total) {
+            return b.total - a.total;
+          }
+
+          const aConcernPercent =
+            a.farTooHighPercent + a.slightlyHighPercent + a.tooLowPercent;
+          const bConcernPercent =
+            b.farTooHighPercent + b.slightlyHighPercent + b.tooLowPercent;
+
+          if (bConcernPercent !== aConcernPercent) {
+            return bConcernPercent - aConcernPercent;
+          }
+
+          return a.category_name.localeCompare(b.category_name);
         }
 
-        return b.concernPercent - a.concernPercent;
+        const aConcernPercent =
+          a.farTooHighPercent + a.slightlyHighPercent + a.tooLowPercent;
+        const bConcernPercent =
+          b.farTooHighPercent + b.slightlyHighPercent + b.tooLowPercent;
+
+        if (bConcernPercent !== aConcernPercent) {
+          return bConcernPercent - aConcernPercent;
+        }
+
+        const aStrongConcernPercent = a.farTooHighPercent + a.tooLowPercent;
+        const bStrongConcernPercent = b.farTooHighPercent + b.tooLowPercent;
+
+        if (bStrongConcernPercent !== aStrongConcernPercent) {
+          return bStrongConcernPercent - aStrongConcernPercent;
+        }
+
+        if (b.total !== a.total) {
+          return b.total - a.total;
+        }
+
+        return a.category_name.localeCompare(b.category_name);
       });
   }, [searchTerm, selectedCategoryVoteRank, selectedFeedback, sortMode]);
 
@@ -415,29 +511,74 @@ function Feedback() {
       ? "all ranks"
       : `${selectedCategoryVoteRank.toLowerCase()} rank`;
   const rankSentimentHasLimitedData = rankSentiment.every((item) => item.total < LOW_DATA_THRESHOLD);
+  const mpReasonableness = useMemo(() => {
+    const mpMap = new Map(mps.map((item) => [String(item.mp_id), item]));
+    const grouped = new Map();
 
-  useEffect(() => {
-    if (loading || error) {
-      return;
-    }
+    selectedFeedback
+      .filter(
+        (item) =>
+          item.mp_id && MP_RESPONSE_VALUES.includes(String(item.response_value || "").toLowerCase())
+      )
+      .forEach((item) => {
+        const mpRecord = mpMap.get(String(item.mp_id));
+        const key = String(item.mp_id);
+        const existing = grouped.get(key) || {
+          mp_id: item.mp_id,
+          mp_name:
+            mpRecord?.display_name ||
+            mpRecord?.full_name ||
+            item.mp_name ||
+            `MP ${item.mp_id}`,
+          mp_rank: mpRecord?.mp_rank || "Unknown",
+          total: 0,
+          notReasonable: 0,
+          somewhat: 0,
+          reasonable: 0,
+        };
 
-    const target =
-      focusType === "category"
-        ? highlightedCategoryRef.current || categorySectionRef.current
-        : focusType === "mp"
-        ? rankSectionRef.current
-        : null;
+        existing.total += 1;
 
-    if (!target) {
-      return;
-    }
+        if (String(item.response_value) === "not_reasonable") {
+          existing.notReasonable += 1;
+        } else if (String(item.response_value) === "somewhat_reasonable") {
+          existing.somewhat += 1;
+        } else if (String(item.response_value) === "very_reasonable") {
+          existing.reasonable += 1;
+        }
 
-    const timeoutId = window.setTimeout(() => {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
+        grouped.set(key, existing);
+      });
 
-    return () => window.clearTimeout(timeoutId);
-  }, [error, focusType, highlightedCategoryId, loading, selectedPeriod]);
+    return Array.from(grouped.values())
+      .map((item) => ({
+        ...item,
+        reasonablePercent: item.total ? Math.round((item.reasonable / item.total) * 100) : 0,
+        somewhatPercent: item.total ? Math.round((item.somewhat / item.total) * 100) : 0,
+        concernPercent: item.total ? Math.round((item.notReasonable / item.total) * 100) : 0,
+        hasLimitedData: item.total < LOW_DATA_THRESHOLD,
+      }))
+      .sort((a, b) => {
+        if (b.reasonablePercent !== a.reasonablePercent) {
+          return b.reasonablePercent - a.reasonablePercent;
+        }
+
+        if (a.concernPercent !== b.concernPercent) {
+          return a.concernPercent - b.concernPercent;
+        }
+
+        if (b.reasonable !== a.reasonable) {
+          return b.reasonable - a.reasonable;
+        }
+
+        if (b.total !== a.total) {
+          return b.total - a.total;
+        }
+
+        return a.mp_name.localeCompare(b.mp_name);
+      });
+  }, [mps, selectedFeedback]);
+  const mostReasonableMp = mpReasonableness[0] || null;
 
   return (
     <div className="feedback-screen">
@@ -558,10 +699,11 @@ function Feedback() {
               </div>
             </section>
 
-            <section className="feedback-section" ref={categorySectionRef}>
+            <section className="feedback-section">
               <h2>Per-category Sentiment</h2>
               <p className="feedback-subtext">
-                Filters category votes by the MP rank view they were submitted from.
+                Filters category votes by the MP rank view they were submitted from and shows
+                whether each allowance felt far too high, slightly high, about right, or too low.
               </p>
               <div className="feedback-search">
                 <input
@@ -620,10 +762,10 @@ function Feedback() {
                 <div className="chip-row">
                   <button
                     type="button"
-                    className={`sort-chip ${sortMode === "concern" ? "active" : ""}`}
-                    onClick={() => setSortMode("concern")}
+                    className={`sort-chip ${sortMode === "votes" ? "active" : ""}`}
+                    onClick={() => setSortMode("votes")}
                   >
-                    Most Concern
+                    Most Votes
                   </button>
                   <button
                     type="button"
@@ -634,10 +776,10 @@ function Feedback() {
                   </button>
                   <button
                     type="button"
-                    className={`sort-chip ghost ${sortMode === "reasonable" ? "active" : ""}`}
-                    onClick={() => setSortMode("reasonable")}
+                    className={`sort-chip ghost ${sortMode === "concerned" ? "active" : ""}`}
+                    onClick={() => setSortMode("concerned")}
                   >
-                    Reasonable
+                    Most Concerned
                   </button>
                 </div>
               </div>
@@ -653,22 +795,18 @@ function Feedback() {
                   return (
                     <Link className="card-link" to={`/categories/${item.category_id}`} key={item.category_id}>
                       <article
-                        ref={isHighlighted ? highlightedCategoryRef : null}
                         className={`feedback-category-card ${accent} ${
                           isHighlighted ? "highlighted" : ""
                         }`}
                       >
                         <div className="feedback-category-title">{item.category_name}</div>
                         <div className="feedback-category-headline">
-                          <strong>{item.concernPercent}%</strong>
-                          <span>Not reasonable</span>
+                          <strong>{item.topResponsePercent}%</strong>
+                          <span>{item.topResponseLabel}</span>
                           <small>
-                            {item.total}{" "}
                             {selectedCategoryVoteRank === "all"
-                              ? `vote${item.total === 1 ? "" : "s"}`
-                              : `${selectedCategoryVoteRank}-${
-                                  item.total === 1 ? "rank vote" : "rank votes"
-                                }`}
+                              ? formatVoteCountLabel(item.total, "vote")
+                              : formatVoteCountLabel(item.total, `${selectedCategoryVoteRank} rank vote`)}
                           </small>
                         </div>
                         {item.hasLimitedData ? (
@@ -691,27 +829,30 @@ function Feedback() {
                         {isExpanded ? (
                           <>
                             <div className="feedback-stacked-bar">
-                              <div
-                                className="segment concern"
-                                style={{ width: `${item.concernPercent}%` }}
-                              >
-                                {item.concernPercent}%
-                              </div>
-                              <div
-                                className="segment somewhat"
-                                style={{ width: `${item.somewhatPercent}%` }}
-                              >
-                                {item.somewhatPercent}%
-                              </div>
-                              <div className="segment very" style={{ width: `${item.veryPercent}%` }}>
-                                {item.veryPercent}%
-                              </div>
+                              {item.responseBreakdown.map((response) => (
+                                <div
+                                  key={response.key}
+                                  className={`segment ${response.tone}`}
+                                  style={{ width: `${response.percent}%` }}
+                                >
+                                  {response.percent >= 15 ? `${response.percent}%` : ""}
+                                </div>
+                              ))}
                             </div>
 
-                            <div className="feedback-legend-row">
-                              <span><i className="legend-dot concern" />not reasonable</span>
-                              <span><i className="legend-dot somewhat" />somewhat</span>
-                              <span><i className="legend-dot very" />reasonable</span>
+                            <div className="feedback-response-grid">
+                              {item.responseBreakdown.map((response) => (
+                                <div className="feedback-response-chip" key={response.key}>
+                                  <div className="feedback-response-chip-top">
+                                    <span>
+                                      <i className={`legend-dot ${response.tone}`} />
+                                      {response.label}
+                                    </span>
+                                    <strong>{response.percent}%</strong>
+                                  </div>
+                                  <small>{formatVoteCountLabel(response.count, "vote")}</small>
+                                </div>
+                              ))}
                             </div>
                           </>
                         ) : null}
@@ -732,7 +873,6 @@ function Feedback() {
 
             <section
               className={`feedback-section ${focusType === "mp" ? "feedback-section-highlighted" : ""}`}
-              ref={rankSectionRef}
             >
               <h2>Public Ratings by MP Rank</h2>
               <p className="feedback-subtext">
@@ -768,6 +908,106 @@ function Feedback() {
                 {strongestRank?.total || 0} votes)
               </div>
             </section>
+
+            <section className="feedback-section">
+              <h2>Most Reasonable MPs</h2>
+              <p className="feedback-subtext">
+                Based on MP-profile votes marked &quot;Reasonable&quot; in {selectedPeriodLabel}.
+              </p>
+
+              {!mpReasonableness.length ? (
+                <div className="feedback-low-data-note">
+                  No MP-profile reasonableness votes have been recorded for {selectedPeriodLabel} yet.
+                </div>
+              ) : (
+                <>
+                  <article className="feedback-mp-highlight-card">
+                    <div className="feedback-mp-highlight-label">Most reasonable this period</div>
+                    <div className="feedback-mp-highlight-name">{mostReasonableMp?.mp_name}</div>
+                    <div className="feedback-mp-highlight-meta">
+                      <span>{mostReasonableMp?.mp_rank} MP</span>
+                      <span>{mostReasonableMp?.reasonablePercent || 0}% reasonable</span>
+                      <span>{formatVoteCountLabel(mostReasonableMp?.total || 0, "vote")}</span>
+                    </div>
+                    {mostReasonableMp?.hasLimitedData ? (
+                      <div className="feedback-low-data-flag">Limited responses</div>
+                    ) : null}
+                  </article>
+
+                  <div className="feedback-mp-list">
+                    {mpReasonableness.slice(0, 5).map((item, index) => {
+                      const isExpanded = expandedMpIds.includes(item.mp_id);
+
+                      return (
+                        <article
+                          className={`feedback-mp-card ${isExpanded ? "expanded" : ""}`}
+                          key={item.mp_id}
+                        >
+                          <div className="feedback-mp-card-top">
+                            <div className="feedback-mp-rank-badge">#{index + 1}</div>
+                            <div className="feedback-mp-copy">
+                              <div className="feedback-mp-name">{item.mp_name}</div>
+                              <div className="feedback-mp-meta">
+                                {item.mp_rank} MP • {item.reasonablePercent}% reasonable
+                              </div>
+                            </div>
+                            <div className="feedback-mp-actions">
+                              <div className="feedback-mp-trend">{item.concernPercent}% concern</div>
+                              <button
+                                type="button"
+                                className="feedback-breakdown-toggle feedback-mp-toggle"
+                                onClick={() => toggleMpBreakdown(item.mp_id)}
+                                aria-expanded={isExpanded}
+                              >
+                                {isExpanded ? "Hide details" : "Show details"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded ? (
+                            <div className="feedback-mp-details">
+                              <div className="feedback-mp-detail-grid">
+                                <div className="feedback-mp-detail-item">
+                                  <span>Reasonable</span>
+                                  <strong>{item.reasonable}</strong>
+                                  <small>{item.reasonablePercent}% of all votes</small>
+                                </div>
+                                <div className="feedback-mp-detail-item">
+                                  <span>Somewhat reasonable</span>
+                                  <strong>{item.somewhat}</strong>
+                                  <small>{item.somewhatPercent}% of all votes</small>
+                                </div>
+                                <div className="feedback-mp-detail-item">
+                                  <span>Not reasonable</span>
+                                  <strong>{item.notReasonable}</strong>
+                                  <small>{item.concernPercent}% concern</small>
+                                </div>
+                                <div className="feedback-mp-detail-item">
+                                  <span>Total votes</span>
+                                  <strong>{item.total}</strong>
+                                  <small>{formatVoteCountLabel(item.total, "vote")}</small>
+                                </div>
+                              </div>
+
+                              <Link
+                                className="feedback-mp-link"
+                                to={`/mps/${item.mp_id}${
+                                  selectedPeriod
+                                    ? `?period=${encodeURIComponent(selectedPeriod)}`
+                                    : ""
+                                }`}
+                              >
+                                see MP detail
+                              </Link>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
           </>
         )}
       </div>
@@ -776,3 +1016,4 @@ function Feedback() {
 }
 
 export default Feedback;
+
