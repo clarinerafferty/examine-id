@@ -573,6 +573,7 @@ function MpDetail() {
     };
   }, [id, selectedPeriodId]);
 
+  /* MP Submit Function */
   async function submitFeedback(responseValue) {
     if (!selectedPeriodId || submittingFeedback) {
       return;
@@ -1397,6 +1398,7 @@ function MpDetail() {
               <span>Overall, how reasonable is {mp?.display_name || mp?.mp_name || "this MP"}&apos;s allowance usage?</span>
             </div>
 
+          {/* MP Vote Button */}
             <div className="profile-feedback-actions">
               <button
                 type="button"
@@ -1431,7 +1433,7 @@ function MpDetail() {
               One anonymous vote per browser per period.
             </p>
 
-            {(submittingFeedback || hasSubmittedFeedback) && (
+            {(submittingFeedback || feedbackMessage) && (
               <>
                 <div className="profile-feedback-status profile-feedback-status-light">
                   <span>{submittingFeedback ? "Saving feedback..." : feedbackMessage}</span>

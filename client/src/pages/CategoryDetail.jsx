@@ -705,6 +705,7 @@ function CategoryDetail() {
       .slice(0, 5);
   }, [records, selectedTopSpendersPeriod]);
 
+  /* Category Vote */
   async function submitFeedback(responseValue) {
     if (!selectedPeriod || submittingFeedback) {
       return;
@@ -1489,7 +1490,7 @@ function CategoryDetail() {
               One anonymous vote per browser, per period, per rank tab.
             </p>
 
-            {(submittingFeedback || hasSubmittedFeedback) && (
+            {(submittingFeedback || feedbackMessage) && (
               <>
                 <div className="profile-feedback-status">
                   <span>{submittingFeedback ? "Saving feedback..." : feedbackMessage}</span>

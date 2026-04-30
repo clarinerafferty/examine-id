@@ -923,3 +923,53 @@ INSERT INTO FeedbackResponse (
 (29, 'rating', 14, NULL, 12, 'somewhat_reasonable', '2026-12-10 13:12:00', 'sess_c82353_mp14_dec', '/mps/14'),
 (30, 'sentiment', NULL, 2, 12, 'slightly_high', '2026-12-10 13:16:00', 'sess_c82353_cat2_dec', '/categories/2');
 
+-- Extra April 2026 seeded responses so the feedback page has enough visible
+-- data for the live demonstration flow.
+INSERT INTO FeedbackResponse (
+  feedback_type,
+  mp_id,
+  category_id,
+  period_id,
+  response_value,
+  submitted_at,
+  session_hash,
+  source_page
+) VALUES
+('rating', 8, NULL, 4, 'not_reasonable', '2026-04-19 09:10:00', 'demo_apr_mp8_001', '/mps/8'),
+('rating', 8, NULL, 4, 'not_reasonable', '2026-04-19 09:12:00', 'demo_apr_mp8_002', '/mps/8'),
+('rating', 8, NULL, 4, 'somewhat_reasonable', '2026-04-19 09:14:00', 'demo_apr_mp8_003', '/mps/8'),
+('rating', 19, NULL, 4, 'not_reasonable', '2026-04-19 09:20:00', 'demo_apr_mp19_001', '/mps/19'),
+('rating', 19, NULL, 4, 'somewhat_reasonable', '2026-04-19 09:22:00', 'demo_apr_mp19_002', '/mps/19'),
+('rating', 16, NULL, 4, 'not_reasonable', '2026-04-19 09:30:00', 'demo_apr_mp16_001', '/mps/16'),
+('rating', 16, NULL, 4, 'very_reasonable', '2026-04-19 09:33:00', 'demo_apr_mp16_002', '/mps/16'),
+('rating', 6, NULL, 4, 'very_reasonable', '2026-04-19 09:40:00', 'demo_apr_mp6_001', '/mps/6'),
+('rating', 6, NULL, 4, 'very_reasonable', '2026-04-19 09:42:00', 'demo_apr_mp6_002', '/mps/6'),
+('rating', 3, NULL, 4, 'somewhat_reasonable', '2026-04-19 09:50:00', 'demo_apr_mp3_001', '/mps/3'),
+
+('sentiment_head', NULL, 1, 4, 'far_too_high', '2026-04-19 10:00:00', 'demo_apr_cat1_head_001', '/categories/1'),
+('sentiment_head', NULL, 1, 4, 'slightly_high', '2026-04-19 10:02:00', 'demo_apr_cat1_head_002', '/categories/1'),
+('sentiment_vice', NULL, 1, 4, 'far_too_high', '2026-04-19 10:04:00', 'demo_apr_cat1_vice_001', '/categories/1'),
+('sentiment_member', NULL, 1, 4, 'slightly_high', '2026-04-19 10:06:00', 'demo_apr_cat1_member_001', '/categories/1'),
+('sentiment_member', NULL, 1, 4, 'about_right', '2026-04-19 10:08:00', 'demo_apr_cat1_member_002', '/categories/1'),
+
+('sentiment_head', NULL, 2, 4, 'slightly_high', '2026-04-19 10:12:00', 'demo_apr_cat2_head_001', '/categories/2'),
+('sentiment_vice', NULL, 2, 4, 'far_too_high', '2026-04-19 10:14:00', 'demo_apr_cat2_vice_001', '/categories/2'),
+('sentiment_member', NULL, 2, 4, 'slightly_high', '2026-04-19 10:16:00', 'demo_apr_cat2_member_001', '/categories/2'),
+('sentiment_member', NULL, 2, 4, 'about_right', '2026-04-19 10:18:00', 'demo_apr_cat2_member_002', '/categories/2'),
+
+('sentiment_head', NULL, 3, 4, 'about_right', '2026-04-19 10:22:00', 'demo_apr_cat3_head_001', '/categories/3'),
+('sentiment_vice', NULL, 3, 4, 'slightly_high', '2026-04-19 10:24:00', 'demo_apr_cat3_vice_001', '/categories/3'),
+('sentiment_member', NULL, 3, 4, 'about_right', '2026-04-19 10:26:00', 'demo_apr_cat3_member_001', '/categories/3'),
+
+('sentiment_head', NULL, 4, 4, 'about_right', '2026-04-19 10:30:00', 'demo_apr_cat4_head_001', '/categories/4'),
+('sentiment_vice', NULL, 4, 4, 'about_right', '2026-04-19 10:32:00', 'demo_apr_cat4_vice_001', '/categories/4'),
+('sentiment_member', NULL, 4, 4, 'too_low', '2026-04-19 10:34:00', 'demo_apr_cat4_member_001', '/categories/4'),
+
+('sentiment_head', NULL, 5, 4, 'about_right', '2026-04-19 10:38:00', 'demo_apr_cat5_head_001', '/categories/5'),
+('sentiment_vice', NULL, 5, 4, 'slightly_high', '2026-04-19 10:40:00', 'demo_apr_cat5_vice_001', '/categories/5'),
+('sentiment_member', NULL, 5, 4, 'about_right', '2026-04-19 10:42:00', 'demo_apr_cat5_member_001', '/categories/5'),
+
+('sentiment_head', NULL, 6, 4, 'far_too_high', '2026-04-19 10:46:00', 'demo_apr_cat6_head_001', '/categories/6'),
+('sentiment_vice', NULL, 6, 4, 'slightly_high', '2026-04-19 10:48:00', 'demo_apr_cat6_vice_001', '/categories/6'),
+('sentiment_member', NULL, 6, 4, 'slightly_high', '2026-04-19 10:50:00', 'demo_apr_cat6_member_001', '/categories/6');
+

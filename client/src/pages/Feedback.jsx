@@ -147,6 +147,7 @@ function Feedback() {
     });
   }
 
+  /* Feedback summary page reads it */ 
   const loadFeedbackPage = useCallback(async () => {
     setLoading(true);
     setError("");
